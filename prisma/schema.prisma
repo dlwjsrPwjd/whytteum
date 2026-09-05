@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TrendSource {
+  GOOGLE_TRENDS
+  YOUTUBE
+  NAVER_DATALAB
+}
+
+enum CollectionStatus {
+  SUCCESS
+  FAILED
+}
+
+model Category {
+  id        String      @id @default(cuid())
+  name      String      @unique
+  slug      String      @unique
+  createdAt DateTime    @default(now())
+  trendItems TrendItem[]
+}
+
+model TrendItem {
+  id          String      @id @default(cuid())
+  title       String
+  source      TrendSource
+  sourceUrl   String?
+  score       Float?
+  rawData     Json?
+  category    Category    @relation(fields: [categoryId], references: [id])
+  categoryId  String
+  aiSummary   AiSummary?
+  collectedAt DateTime    @default(now())
+  createdAt   DateTime    @default(now())
+
+  @@index([source, collectedAt])
+  @@index([categoryId])
+}
+
+model AiSummary {
+  id            String    @id @default(cuid())
+  trendItem     TrendItem @relation(fields: [trendItemId], references: [id], onDelete: Cascade)
+  trendItemId   String    @unique
+  summary       String
+  model         String    @default("gemini-flash")
+  promptVersion String    @default("v1")
+  createdAt     DateTime  @default(now())
+}
+
+model CollectionLog {
+  id             String            @id @default(cuid())
+  source         TrendSource
+  status         CollectionStatus
+  itemsCollected Int               @default(0)
+  errorMessage   String?
+  startedAt      DateTime
+  finishedAt     DateTime?
+  createdAt      DateTime          @default(now())
+
+  @@index([source, createdAt])
+}
