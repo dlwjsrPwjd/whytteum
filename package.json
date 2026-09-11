@@ -1,0 +1,16 @@
+{
+  "name": "whytteum",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:generate": "prisma generate",
+    "prisma:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@prisma/client": "^6"
+  },
+  "devDependencies": {
+    "prisma": "^6"
+  }
+}

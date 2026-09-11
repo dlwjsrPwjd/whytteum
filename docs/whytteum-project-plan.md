@@ -119,15 +119,14 @@ jobs:
 ## 7. 단계별 개발 플랜
 
 ### Phase 0. 환경 준비 (2~3일)
-- [ ] GitHub 저장소 생성 (이름: `whytteum`, **public** — 포트폴리오 공개 목적. 단, self-hosted runner 보안 설정(Fork PR 승인 필수)을 함께 적용)
-- [ ] `.gitignore` 설정 (Next.js 기본값 + `.env`, `node_modules`, `.next` 포함)
-- [ ] 로컬 프로젝트 초기화 후 원격 저장소 연결 (`git init` → `remote add` → 초기 커밋 push)
-- [ ] self-hosted runner 등록: 저장소 Settings → Actions → Runners에서 안내 스크립트를 PC에서 실행, 상시 실행되도록 서비스 등록
-- [ ] Docker, Docker Compose 설치 확인
-- [ ] Cloudflare Tunnel 설정 (`cloudflared` 설치, 터널 생성, 무료 서브도메인 연결)
-- [ ] GitHub 저장소 생성, self-hosted runner 등록
-- [ ] Gemini API 키 발급 (Google AI Studio)
-- [ ] Next.js 프로젝트 초기화 (App Router, TypeScript, Tailwind)
+- [x] GitHub 저장소 생성 (이름: `whytteum`, **public** — 포트폴리오 공개 목적. 단, self-hosted runner 보안 설정(Fork PR 승인 필수)을 함께 적용) — `dlwjsrPwjd/whytteum`, public 확인됨. Fork PR 승인 설정은 아래 runner 등록 시 함께 적용
+- [x] `.gitignore` 설정 (Next.js 기본값 + `.env`, `node_modules`, `.next` 포함)
+- [x] 로컬 프로젝트 초기화 후 원격 저장소 연결 (`git init` → `remote add` → 초기 커밋 push)
+- [ ] self-hosted runner 등록: 저장소 Settings → Actions → Runners에서 안내 스크립트를 PC에서 실행, 상시 실행되도록 서비스 등록 (진행 중 — 절차는 README 또는 아래 안내 참고)
+- [x] Docker, Docker Compose 설치 확인 (Docker 29.5.3 / Compose v5.1.4)
+- [ ] Cloudflare Tunnel 설정 (`cloudflared` 설치, 터널 생성) — **Quick Tunnel 방식 채택** (무료, 도메인 불필요, 재시작마다 주소 변경)
+- [x] Gemini API 키 발급 (Google AI Studio) — `.env`에 설정 및 테스트 호출 확인
+- [x] Next.js 프로젝트 초기화 (App Router, TypeScript, Tailwind)
 
 ### Phase 1. Docker 기반 개발 환경 구축 (3~4일)
 - [ ] `docker-compose.dev.yml`로 로컬 개발용 Postgres 컨테이너 구성
