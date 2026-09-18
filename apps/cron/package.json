@@ -4,7 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "collect": "tsx src/index.ts"
+    "collect": "tsx src/index.ts",
+    "summarize": "tsx src/summarize.ts"
   },
   "dependencies": {
     "dotenv": "^16",
