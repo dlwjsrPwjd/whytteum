@@ -1,6 +1,44 @@
+import type { TrendSource } from "@prisma/client";
 import { prisma } from "./prisma";
 
 const PAGE_SIZE = 20;
+
+export interface RankedItem {
+  id: string;
+  title: string;
+  score: number | null;
+  source: TrendSource;
+  categoryName: string;
+}
+
+async function getTopByPeriod(hours: number): Promise<RankedItem[]> {
+  const since = new Date(Date.now() - hours * 60 * 60 * 1000);
+  const items = await prisma.trendItem.findMany({
+    where: { collectedAt: { gte: since }, score: { not: null } },
+    include: { category: true },
+    orderBy: { score: "desc" },
+    take: 10,
+  });
+
+  return items.map((item) => ({
+    id: item.id,
+    title: item.title,
+    score: item.score,
+    source: item.source,
+    categoryName: item.category.name,
+  }));
+}
+
+export async function getRankedSections() {
+  const [realtime, daily, weekly, monthly] = await Promise.all([
+    getTopByPeriod(3),
+    getTopByPeriod(24),
+    getTopByPeriod(24 * 7),
+    getTopByPeriod(24 * 30),
+  ]);
+
+  return { realtime, daily, weekly, monthly };
+}
 
 export async function getCategories() {
   return prisma.category.findMany({

@@ -12,11 +12,11 @@ export function CategoryNav({
 }) {
   return (
     <nav className="flex flex-wrap gap-2 text-sm">
-      <CategoryPill href="/" label="전체" active={!activeSlug} />
+      <CategoryPill href="/all" label="전체" active={!activeSlug} />
       {categories.map((c) => (
         <CategoryPill
           key={c.id}
-          href={`/?category=${c.slug}`}
+          href={`/all?category=${c.slug}`}
           label={`${c.name} (${c._count.trendItems})`}
           active={activeSlug === c.slug}
         />

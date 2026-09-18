@@ -16,7 +16,7 @@ export function Pagination({
     if (categorySlug) params.set("category", categorySlug);
     if (targetPage > 1) params.set("page", String(targetPage));
     const query = params.toString();
-    return query ? `/?${query}` : "/";
+    return query ? `/all?${query}` : "/all";
   };
 
   return (

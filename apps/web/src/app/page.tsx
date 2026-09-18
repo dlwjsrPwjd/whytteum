@@ -1,24 +1,12 @@
-import { getCategories, getTrendFeed } from "@/lib/trends";
-import { TrendCard } from "@/components/TrendCard";
-import { CategoryNav } from "@/components/CategoryNav";
-import { Pagination } from "@/components/Pagination";
+import Link from "next/link";
+import { getRankedSections } from "@/lib/trends";
+import { RankingSection } from "@/components/RankingSection";
 
-export default async function Home({
-  searchParams,
-}: {
-  searchParams: Promise<{ category?: string; page?: string }>;
-}) {
-  const params = await searchParams;
-  const categorySlug = params.category;
-  const page = Math.max(1, Number(params.page ?? "1") || 1);
-
-  const [categories, feed] = await Promise.all([
-    getCategories(),
-    getTrendFeed({ categorySlug, page }),
-  ]);
+export default async function Home() {
+  const sections = await getRankedSections();
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-10 sm:px-6">
+    <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-10 sm:px-6">
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold tracking-tight">왜뜸</h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -26,27 +14,19 @@ export default async function Home({
         </p>
       </header>
 
-      <CategoryNav categories={categories} activeSlug={categorySlug} />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <RankingSection title="🔴 실시간" items={sections.realtime} />
+        <RankingSection title="📅 일간" items={sections.daily} />
+        <RankingSection title="🗓️ 주간" items={sections.weekly} />
+        <RankingSection title="📆 월간" items={sections.monthly} />
+      </div>
 
-      {feed.items.length === 0 ? (
-        <p className="py-16 text-center text-sm text-zinc-500 dark:text-zinc-400">
-          아직 수집된 트렌드가 없습니다.
-        </p>
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {feed.items.map((item) => (
-            <li key={item.id}>
-              <TrendCard item={item} />
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <Pagination
-        categorySlug={categorySlug}
-        page={feed.page}
-        totalPages={feed.totalPages}
-      />
+      <Link
+        href="/all"
+        className="self-center text-sm text-zinc-500 hover:underline dark:text-zinc-400"
+      >
+        카테고리별 전체 트렌드 보기 →
+      </Link>
     </div>
   );
 }
