@@ -48,7 +48,7 @@ export function RankingSection({
           {visible.map((item, i) => (
             <li key={item.id}>
               <Link
-                href={`/trend/${item.id}`}
+                href={item.kind === "keyword" ? `/keyword/${item.id}` : `/trend/${item.id}`}
                 className="flex items-baseline gap-2 hover:underline"
               >
                 <span className="w-5 shrink-0 text-right text-sm font-bold text-zinc-400">
@@ -56,7 +56,7 @@ export function RankingSection({
                 </span>
                 <span className="truncate text-sm">{item.title}</span>
                 <span className="ml-auto shrink-0 text-xs text-zinc-400">
-                  {sourceLabel(item.source)}
+                  {item.kind === "keyword" ? `영상 ${item.videoCount}개` : sourceLabel(item.source)}
                 </span>
               </Link>
             </li>
