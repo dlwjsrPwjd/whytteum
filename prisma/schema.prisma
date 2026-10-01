@@ -10,7 +10,6 @@ datasource db {
 enum TrendSource {
   GOOGLE_TRENDS
   YOUTUBE
-  NAVER_DATALAB
 }
 
 enum CollectionStatus {
@@ -35,37 +34,22 @@ model TrendItem {
   rawData     Json?
   category    Category    @relation(fields: [categoryId], references: [id])
   categoryId  String
-  aiSummary   AiSummary?
   collectedAt DateTime    @default(now())
   createdAt   DateTime    @default(now())
 
-  // YouTube 영상 반복 추적용 (source=YOUTUBE에서만 값이 채워짐)
+  // YouTube 영상 정보 (source=YOUTUBE에서만 값이 채워짐)
   youtubeVideoId    String?   @unique
   channelId         String?
   channelTitle      String?
-  subscriberCount   Int?
-  isOfficialChannel Boolean   @default(false)
-  velocityScore     Float?
   publishedAt       DateTime?
   durationSec       Int?
   isShort           Boolean   @default(false)
 
-  snapshots     VideoSnapshot[]
   videoKeywords VideoKeyword[]
 
   @@index([source, collectedAt])
   @@index([categoryId])
   @@index([publishedAt])
-}
-
-model VideoSnapshot {
-  id          String    @id @default(cuid())
-  trendItem   TrendItem @relation(fields: [trendItemId], references: [id], onDelete: Cascade)
-  trendItemId String
-  viewCount   Int
-  capturedAt  DateTime  @default(now())
-
-  @@index([trendItemId, capturedAt])
 }
 
 model Keyword {
@@ -89,16 +73,6 @@ model VideoKeyword {
   createdAt   DateTime  @default(now())
 
   @@unique([trendItemId, keywordId])
-}
-
-model AiSummary {
-  id            String    @id @default(cuid())
-  trendItem     TrendItem @relation(fields: [trendItemId], references: [id], onDelete: Cascade)
-  trendItemId   String    @unique
-  summary       String
-  model         String    @default("gemini-flash")
-  promptVersion String    @default("v1")
-  createdAt     DateTime  @default(now())
 }
 
 model CollectionLog {
