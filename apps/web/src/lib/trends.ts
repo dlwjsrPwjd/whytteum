@@ -1,159 +1,118 @@
-import type { TrendSource } from "@prisma/client";
 import { prisma } from "./prisma";
-import { MUSIC_CATEGORY_SLUG, OFFICIAL_CHANNEL_WEIGHT, KEYWORD_RANKING_TAKE } from "./ranking-config";
+import {
+  HIDDEN_FROM_ALL_CATEGORIES,
+  MIN_CHANNEL_COUNT,
+  RANKING_SIZE,
+  SHORTS_CHANNEL_BONUS,
+  TREND_CATEGORIES,
+} from "./ranking-config";
 
-const PAGE_SIZE = 20;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
-export type RankedItem =
-  | {
-      kind: "keyword";
-      id: string;
-      title: string;
-      score: number;
-      videoCount: number;
-    }
-  | {
-      kind: "item";
-      id: string;
-      title: string;
-      score: number;
-      source: TrendSource;
-      categoryName: string;
-    };
+export interface RankedTopic {
+  id: string;
+  title: string;
+  category: string | null;
+  summary: string | null;
+  channelCount: number;
+  shortsChannelCount: number;
+  totalViews: number;
+  score: number;
+}
 
-async function getTopKeywordsByPeriod(hours: number, take: number): Promise<RankedItem[]> {
-  const since = new Date(Date.now() - hours * 60 * 60 * 1000);
-  const trendItems = await prisma.trendItem.findMany({
+export function isTrendCategory(name: string | undefined): name is string {
+  return TREND_CATEGORIES.some((c) => c.name === name);
+}
+
+// category가 없으면 "전체" = 유행 카테고리 중 HIDDEN_FROM_ALL_CATEGORIES를 뺀 것
+function categoryFilter(category?: string): string[] {
+  if (category) return [category];
+  return TREND_CATEGORIES.map((c) => c.name).filter((name) => !HIDDEN_FROM_ALL_CATEGORIES.includes(name));
+}
+
+// 기간 안에 "올라온" 영상 기준으로 주제별 확산 정도를 집계
+async function getTopTopics(days: number, category?: string): Promise<RankedTopic[]> {
+  const since = new Date(Date.now() - days * DAY_MS);
+  const links = await prisma.videoKeyword.findMany({
     where: {
-      source: "YOUTUBE",
-      velocityScore: { not: null },
-      collectedAt: { gte: since },
-      category: { slug: { not: MUSIC_CATEGORY_SLUG } },
+      trendItem: { source: "YOUTUBE", publishedAt: { gte: since } },
+      keyword: { category: { in: categoryFilter(category) } },
     },
     select: {
-      velocityScore: true,
-      isOfficialChannel: true,
-      videoKeywords: { select: { keyword: { select: { id: true, text: true } } } },
+      keyword: { select: { id: true, text: true, category: true, summary: true } },
+      trendItem: { select: { channelId: true, isShort: true, score: true } },
     },
   });
 
-  const byKeyword = new Map<string, { text: string; score: number; videoCount: number }>();
-  for (const item of trendItems) {
-    const adjusted = (item.velocityScore ?? 0) * (item.isOfficialChannel ? OFFICIAL_CHANNEL_WEIGHT : 1);
-    for (const { keyword } of item.videoKeywords) {
-      const entry = byKeyword.get(keyword.id) ?? { text: keyword.text, score: 0, videoCount: 0 };
-      entry.score += adjusted;
-      entry.videoCount += 1;
-      byKeyword.set(keyword.id, entry);
+  const byTopic = new Map<
+    string,
+    { text: string; category: string | null; summary: string | null; channels: Set<string>; shortsChannels: Set<string>; views: number }
+  >();
+  for (const { keyword, trendItem } of links) {
+    const entry = byTopic.get(keyword.id) ?? {
+      text: keyword.text,
+      category: keyword.category,
+      summary: keyword.summary,
+      channels: new Set<string>(),
+      shortsChannels: new Set<string>(),
+      views: 0,
+    };
+    if (trendItem.channelId) {
+      entry.channels.add(trendItem.channelId);
+      if (trendItem.isShort) entry.shortsChannels.add(trendItem.channelId);
     }
+    entry.views += trendItem.score ?? 0;
+    byTopic.set(keyword.id, entry);
   }
 
-  return [...byKeyword.entries()]
-    .map(([id, { text, score, videoCount }]) => ({
-      kind: "keyword" as const,
+  return [...byTopic.entries()]
+    .filter(([, t]) => t.channels.size >= MIN_CHANNEL_COUNT)
+    .map(([id, t]) => ({
       id,
-      title: text,
-      score,
-      videoCount,
+      title: t.text,
+      category: t.category,
+      summary: t.summary,
+      channelCount: t.channels.size,
+      shortsChannelCount: t.shortsChannels.size,
+      totalViews: t.views,
+      score: (t.channels.size + SHORTS_CHANNEL_BONUS * t.shortsChannels.size) * Math.log10(10 + t.views),
     }))
     .sort((a, b) => b.score - a.score)
-    .slice(0, take);
+    .slice(0, RANKING_SIZE);
 }
 
-async function getTopGoogleTrendsByPeriod(hours: number, take: number): Promise<RankedItem[]> {
-  const since = new Date(Date.now() - hours * 60 * 60 * 1000);
-  const items = await prisma.trendItem.findMany({
-    where: { source: "GOOGLE_TRENDS", collectedAt: { gte: since }, score: { not: null } },
-    include: { category: true },
-    orderBy: { score: "desc" },
-    take,
-  });
-
-  return items.map((item) => ({
-    kind: "item" as const,
-    id: item.id,
-    title: item.title,
-    score: item.score!,
-    source: item.source,
-    categoryName: item.category.name,
-  }));
-}
-
-async function getTopByPeriod(hours: number): Promise<RankedItem[]> {
-  const [keywords, googleTrends] = await Promise.all([
-    getTopKeywordsByPeriod(hours, KEYWORD_RANKING_TAKE),
-    getTopGoogleTrendsByPeriod(hours, KEYWORD_RANKING_TAKE),
+export async function getRankedSections(category?: string) {
+  const [recent, weekly, monthly] = await Promise.all([
+    getTopTopics(3, category),
+    getTopTopics(7, category),
+    getTopTopics(30, category),
   ]);
-
-  return [...keywords, ...googleTrends].sort((a, b) => b.score - a.score).slice(0, 10);
+  return { recent, weekly, monthly };
 }
 
-export async function getRankedSections() {
-  const [realtime, daily, weekly, monthly] = await Promise.all([
-    getTopByPeriod(3),
-    getTopByPeriod(24),
-    getTopByPeriod(24 * 7),
-    getTopByPeriod(24 * 30),
-  ]);
-
-  return { realtime, daily, weekly, monthly };
+// 카테고리별 유행 페이지의 "한눈에 보기": 카테고리마다 이번 주(7일) 랭킹
+export async function getCategoryOverview() {
+  return Promise.all(
+    TREND_CATEGORIES.map(async (category) => ({
+      ...category,
+      items: await getTopTopics(7, category.name),
+    })),
+  );
 }
 
 export async function getKeywordDetail(keywordId: string) {
   const keyword = await prisma.keyword.findUnique({ where: { id: keywordId } });
   if (!keyword) return null;
 
-  const videoKeywords = await prisma.videoKeyword.findMany({
-    where: { keywordId },
-    include: {
-      trendItem: { include: { category: true, aiSummary: true } },
-    },
+  const videos = await prisma.trendItem.findMany({
+    where: { videoKeywords: { some: { keywordId } } },
+    orderBy: [{ publishedAt: "desc" }],
   });
-
-  const trendItems = videoKeywords
-    .map((vk) => vk.trendItem)
-    .sort((a, b) => (b.velocityScore ?? 0) - (a.velocityScore ?? 0));
-
-  return { keyword, trendItems };
-}
-
-export async function getCategories() {
-  return prisma.category.findMany({
-    orderBy: { name: "asc" },
-    include: { _count: { select: { trendItems: true } } },
-  });
-}
-
-export async function getTrendFeed({
-  categorySlug,
-  page = 1,
-}: {
-  categorySlug?: string;
-  page?: number;
-}) {
-  const where = categorySlug ? { category: { slug: categorySlug } } : {};
-
-  const [items, total] = await Promise.all([
-    prisma.trendItem.findMany({
-      where,
-      include: { category: true, aiSummary: true },
-      orderBy: { collectedAt: "desc" },
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
-    }),
-    prisma.trendItem.count({ where }),
-  ]);
 
   return {
-    items,
-    page,
-    totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
+    keyword,
+    videos,
+    channelCount: new Set(videos.map((v) => v.channelId)).size,
+    shortsCount: videos.filter((v) => v.isShort).length,
   };
-}
-
-export async function getTrendItem(id: string) {
-  return prisma.trendItem.findUnique({
-    where: { id },
-    include: { category: true, aiSummary: true },
-  });
 }

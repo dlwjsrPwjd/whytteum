@@ -1,32 +1,71 @@
 import Link from "next/link";
-import { getRankedSections } from "@/lib/trends";
+import { getRankedSections, type RankedTopic } from "@/lib/trends";
 import { RankingSection } from "@/components/RankingSection";
+import { formatViews } from "@/lib/format";
 
 export default async function Home() {
   const sections = await getRankedSections();
+  const spotlight = sections.recent[0];
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-10 sm:px-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">왜뜸</h1>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          요즘 이게 왜 유행인지, AI가 대신 알려드려요
+    <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-10 sm:px-6">
+      <section className="flex flex-col gap-2">
+        <span className="self-start rounded-full bg-coral-100 px-3 py-1 text-xs font-semibold text-coral-700 dark:bg-coral-950 dark:text-coral-300">
+          유튜브 쇼츠 기반 트렌드 랭킹
+        </span>
+        <h1 className="text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+          요즘 이게{" "}
+          <span className="bg-linear-to-r from-coral-500 to-violet-500 bg-clip-text text-transparent">
+            왜 뜨는지
+          </span>
+          ,<br className="sm:hidden" /> AI가 대신 알려드려요
+        </h1>
+        <p className="text-sm text-stone-500 dark:text-stone-400">
+          같은 주제를 다룬 채널이 많을수록 순위가 높아요. 기간은 영상이 올라온 날 기준이에요.
         </p>
-      </header>
+      </section>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <RankingSection title="🔴 실시간" items={sections.realtime} />
-        <RankingSection title="📅 일간" items={sections.daily} />
-        <RankingSection title="🗓️ 주간" items={sections.weekly} />
-        <RankingSection title="📆 월간" items={sections.monthly} />
+      {spotlight && <Spotlight topic={spotlight} />}
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <RankingSection title="요즘 뜨는" period="3일" emoji="🔥" items={sections.recent} highlight />
+        <RankingSection title="이번 주" period="7일" emoji="🗓️" items={sections.weekly} />
+        <RankingSection title="이번 달" period="30일" emoji="📆" items={sections.monthly} />
       </div>
-
-      <Link
-        href="/all"
-        className="self-center text-sm text-zinc-500 hover:underline dark:text-zinc-400"
-      >
-        카테고리별 전체 트렌드 보기 →
-      </Link>
     </div>
+  );
+}
+
+// 3일 랭킹 1위를 AI 요약과 함께 크게 보여주는 카드
+function Spotlight({ topic }: { topic: RankedTopic }) {
+  return (
+    <Link
+      href={`/keyword/${topic.id}`}
+      className="group relative overflow-hidden rounded-3xl bg-linear-to-br from-coral-500 via-coral-500 to-violet-500 p-6 text-white shadow-lg shadow-coral-500/20 transition-transform hover:-translate-y-0.5 sm:p-8"
+    >
+      <div className="pointer-events-none absolute -top-16 -right-16 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
+      <div className="relative flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+          <span className="rounded-full bg-white/20 px-2.5 py-1">👑 지금 1위</span>
+          {topic.category && <span className="rounded-full bg-white/20 px-2.5 py-1">{topic.category}</span>}
+        </div>
+        <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">{topic.title}</h2>
+        {topic.summary && (
+          <p className="line-clamp-3 max-w-3xl text-sm leading-relaxed text-white/90 sm:text-base">
+            {topic.summary}
+          </p>
+        )}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/90">
+          <span>
+            <b className="text-white">{topic.channelCount}</b>개 채널이 다룸
+          </span>
+          <span>
+            쇼츠 채널 <b className="text-white">{topic.shortsChannelCount}</b>곳
+          </span>
+          <span>총 조회수 {formatViews(topic.totalViews)}</span>
+          <span className="ml-auto font-semibold group-hover:underline">자세히 보기 →</span>
+        </div>
+      </div>
+    </Link>
   );
 }

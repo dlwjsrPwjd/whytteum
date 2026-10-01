@@ -1,26 +1,44 @@
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fffaf8;
+  --foreground: #1c1917;
 }
 
+/*
+ * 브랜드 색상
+ * - coral(#FF6B4A): 메인. "지금 핫한 것" — 순위, 강조, 활성 상태
+ * - violet(Tailwind 기본 violet-500 = #8B5CF6): 보조. AI 요약/큐레이션 영역
+ */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: "Pretendard Variable", Pretendard, var(--font-geist-sans), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
+
+  --color-coral-50: #fff4f1;
+  --color-coral-100: #ffe4dc;
+  --color-coral-200: #ffc7b8;
+  --color-coral-300: #ffa18b;
+  --color-coral-400: #ff8466;
+  --color-coral-500: #ff6b4a;
+  --color-coral-600: #eb4f2d;
+  --color-coral-700: #c43c1e;
+  --color-coral-800: #9c321b;
+  --color-coral-900: #5e1e10;
+  --color-coral-950: #3b1209;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0f0d0c;
+    --foreground: #f5f0ee;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
 }

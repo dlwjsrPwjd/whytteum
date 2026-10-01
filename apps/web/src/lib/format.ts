@@ -9,14 +9,9 @@ export function formatDate(date: Date) {
   return formatter.format(date);
 }
 
-// 시간당 조회수 증가속도를 "+3.2만 회/시간" 형태로 표시
-export function formatVelocity(viewsPerHour: number) {
-  const rounded = Math.round(viewsPerHour);
-  const abs = Math.abs(rounded);
-  const sign = rounded >= 0 ? "+" : "-";
-
-  if (abs >= 10000) {
-    return `${sign}${(abs / 10000).toFixed(1)}만 회/시간`;
-  }
-  return `${sign}${abs.toLocaleString("ko-KR")}회/시간`;
+// 조회수를 "3.2만회", "1.1억회" 형태로 표시
+export function formatViews(views: number) {
+  if (views >= 100_000_000) return `${(views / 100_000_000).toFixed(1)}억회`;
+  if (views >= 10_000) return `${(views / 10_000).toFixed(1)}만회`;
+  return `${views.toLocaleString("ko-KR")}회`;
 }
