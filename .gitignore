@@ -40,6 +40,9 @@ prisma/dev.db-journal
 # docker
 docker/data/
 
+# cron 스케줄러 로그
+apps/cron/collect.log
+
 # IDE
 .vscode/
 .idea/

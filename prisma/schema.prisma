@@ -39,8 +39,47 @@ model TrendItem {
   collectedAt DateTime    @default(now())
   createdAt   DateTime    @default(now())
 
+  // YouTube 영상 반복 추적용 (source=YOUTUBE에서만 값이 채워짐)
+  youtubeVideoId    String?  @unique
+  channelId         String?
+  channelTitle      String?
+  subscriberCount   Int?
+  isOfficialChannel Boolean  @default(false)
+  velocityScore     Float?
+
+  snapshots     VideoSnapshot[]
+  videoKeywords VideoKeyword[]
+
   @@index([source, collectedAt])
   @@index([categoryId])
+}
+
+model VideoSnapshot {
+  id          String    @id @default(cuid())
+  trendItem   TrendItem @relation(fields: [trendItemId], references: [id], onDelete: Cascade)
+  trendItemId String
+  viewCount   Int
+  capturedAt  DateTime  @default(now())
+
+  @@index([trendItemId, capturedAt])
+}
+
+model Keyword {
+  id            String         @id @default(cuid())
+  text          String         @unique
+  videoKeywords VideoKeyword[]
+  createdAt     DateTime       @default(now())
+}
+
+model VideoKeyword {
+  id          String    @id @default(cuid())
+  trendItem   TrendItem @relation(fields: [trendItemId], references: [id], onDelete: Cascade)
+  trendItemId String
+  keyword     Keyword   @relation(fields: [keywordId], references: [id])
+  keywordId   String
+  createdAt   DateTime  @default(now())
+
+  @@unique([trendItemId, keywordId])
 }
 
 model AiSummary {
