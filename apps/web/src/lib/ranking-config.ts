@@ -21,16 +21,17 @@ export const RISING_WINDOW_HOURS = 24;
 export const SURGE_MIN_CHANNELS = 5;
 
 // 유행 카테고리. apps/cron/src/lib/gemini.ts의 TOPIC_CATEGORIES와 맞춰서 유지
+// core: 서비스의 원래 목적인 "핵심 유행" (apps/cron/src/lib/config.ts의 CORE_CATEGORIES와 같게)
 export const TREND_CATEGORIES = [
-  { name: "음식/디저트", emoji: "🍰" },
-  { name: "패션/뷰티", emoji: "💄" },
-  { name: "아이템/쇼핑", emoji: "🛍️" },
-  { name: "밈/챌린지", emoji: "🤳" },
-  { name: "음악/댄스", emoji: "🎵" },
-  { name: "드라마/예능", emoji: "📺" },
-  { name: "게임", emoji: "🎮" },
-  { name: "인물/이슈", emoji: "💬" },
-  { name: "정치", emoji: "🏛️" },
+  { name: "음식/디저트", emoji: "🍰", core: true },
+  { name: "패션/뷰티", emoji: "💄", core: false },
+  { name: "아이템/쇼핑", emoji: "🛍️", core: true },
+  { name: "밈/챌린지", emoji: "🤳", core: true },
+  { name: "음악/댄스", emoji: "🎵", core: true },
+  { name: "드라마/예능", emoji: "📺", core: true },
+  { name: "게임", emoji: "🎮", core: false },
+  { name: "인물/이슈", emoji: "💬", core: false },
+  { name: "정치", emoji: "🏛️", core: false },
 ] as const;
 
 // 기본(전체) 랭킹에서는 빼고, 해당 카테고리를 직접 골랐을 때만 보여줌
