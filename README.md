@@ -44,11 +44,11 @@
 [Cloudflare Tunnel]            ← 예정
        │
        ▼
-[개인 PC]
-  ├─ apps/web   (Next.js SSR)
-  ├─ PostgreSQL (Docker)
-  └─ apps/cron  (수집 + Gemini 요약)
-       └─ Windows 작업 스케줄러가 1시간마다 실행
+[개인 PC · Docker Compose]
+  ├─ web   컨테이너 (Next.js SSR)
+  ├─ db    컨테이너 (PostgreSQL)
+  └─ cron  컨테이너 (수집 + Gemini 요약)
+       └─ 1시간마다 실행
           (YouTube 검색은 API 할당량 때문에 4시간 간격으로만 수행)
 ```
 
