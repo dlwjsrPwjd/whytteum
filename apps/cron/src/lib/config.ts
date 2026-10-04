@@ -10,17 +10,22 @@ export const DISCOVERY_LOOKBACK_HOURS = 48;
 
 // 탐색 검색 쿼리. 전부 short(4분 미만, 쇼츠 위주). 유행 카테고리별로 걸리도록 구성
 export const DISCOVERY_QUERIES: { q: string; duration: "short" | "medium" }[] = [
+  // 핵심 유행(CORE_CATEGORIES)용: 밈, 음식, 장난감/굿즈, 드라마/영화, 음악
   { q: "유행|챌린지|밈", duration: "short" },
   { q: "요즘|난리|화제", duration: "short" },
   { q: "신상|품절|핫한", duration: "short" },
-  { q: "디저트|신메뉴|맛집", duration: "short" },
-  { q: "코디|화장품|올리브영", duration: "short" },
-  // 인물/이슈(유튜버·연예인 논란), 정치 이슈용
+  // "맛집"은 가게마다 제각각이라 한 주제로 안 묶여서 빼고 편의점 신상 쪽으로
+  { q: "디저트|신메뉴|편의점", duration: "short" },
+  { q: "장난감|완구|굿즈|키링", duration: "short" },
+  { q: "드라마|영화|명장면", duration: "short" },
+  { q: "신곡|안무|커버", duration: "short" },
+  // 부가: 인물/이슈(유튜버·연예인 논란), 정치 이슈용
   { q: "논란|근황|폭로", duration: "short" },
-  // 위 쿼리로는 거의 안 걸리던 드라마/예능, 음악/댄스, 게임용
-  { q: "드라마|예능|명장면", duration: "short" },
-  { q: "신곡|안무|게임", duration: "short" },
 ];
+
+// 서비스의 원래 목적인 "핵심 유행" 카테고리. 확장 검색 배정에서 우선함
+// (패션/뷰티·인물/이슈·게임·정치는 부가 카테고리)
+export const CORE_CATEGORIES = ["음식/디저트", "밈/챌린지", "아이템/쇼핑", "음악/댄스", "드라마/예능"];
 
 // 확장 검색: 주제 하나를 키워드로 다시 검색해서 "몇 개 채널이 다루는지"를 모음
 // (쿨다운 때문에 실제로는 회차당 3~8개만 돌아서, 탐색 쿼리 2개를 늘리면서 8 → 6으로 줄임)

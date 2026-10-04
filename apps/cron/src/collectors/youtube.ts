@@ -10,6 +10,7 @@ import {
   type YoutubeVideo,
 } from "../lib/youtubeApi.js";
 import {
+  CORE_CATEGORIES,
   DISCOVERY_INTERVAL_HOURS,
   DISCOVERY_LOOKBACK_HOURS,
   DISCOVERY_QUERIES,
@@ -167,7 +168,7 @@ async function expand(registry: TopicRegistry, discovered: { keywordId: string; 
 
 // 확장 대상 고르기. 채널 수 순으로만 뽑으면 원래 많이 잡히는 인물/이슈·정치·음악이 자리를 다 가져가서
 // 게임·음식 주제는 확장을 못 받고 채널 1~2곳에 머묾 → 상위 EXPAND_TOP_SLOTS개만 채널 수 순,
-// 나머지는 최근 확장을 적게 받은 카테고리부터 한 개씩 돌아가며 배정
+// 나머지는 핵심 카테고리(CORE_CATEGORIES) 먼저, 그 안에서 최근 확장을 적게 받은 카테고리부터 한 개씩 돌아가며 배정
 async function pickBalancedByCategory<T extends { id: string; category: string | null }>(sortedCandidates: T[]): Promise<T[]> {
   const picked = sortedCandidates.slice(0, EXPAND_TOP_SLOTS);
   const rest = sortedCandidates.slice(EXPAND_TOP_SLOTS);
@@ -185,7 +186,10 @@ async function pickBalancedByCategory<T extends { id: string; category: string |
   for (const k of picked) expandedCount.set(k.category, (expandedCount.get(k.category) ?? 0) + 1);
 
   while (picked.length < EXPAND_PER_RUN && queues.size > 0) {
-    const order = [...queues.keys()].sort((a, b) => (expandedCount.get(a) ?? 0) - (expandedCount.get(b) ?? 0));
+    const isCore = (c: string | null) => (c && CORE_CATEGORIES.includes(c) ? 0 : 1);
+    const order = [...queues.keys()].sort(
+      (a, b) => isCore(a) - isCore(b) || (expandedCount.get(a) ?? 0) - (expandedCount.get(b) ?? 0),
+    );
     for (const category of order) {
       if (picked.length >= EXPAND_PER_RUN) break;
       const queue = queues.get(category)!;
