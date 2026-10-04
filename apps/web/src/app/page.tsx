@@ -25,7 +25,7 @@ export default async function Home() {
           ,<br className="sm:hidden" /> AI가 대신 알려드려요
         </h1>
         <p className="text-sm text-stone-500 dark:text-stone-400">
-          카테고리마다 가장 많은 채널이 다룬 주제부터 골고루 모았어요. 기간은 영상이 올라온 날 기준이에요.
+          같은 주제를 다룬 채널이 많을수록 순위가 높아요. 기간은 영상이 올라온 날 기준이에요.
         </p>
       </section>
 

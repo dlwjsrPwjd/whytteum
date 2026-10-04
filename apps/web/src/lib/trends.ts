@@ -99,23 +99,9 @@ async function aggregateTopics(days: number, categories: readonly string[]): Pro
     .sort((a, b) => b.score - a.score);
 }
 
-// 메인 랭킹: 카테고리마다 원래 붙는 채널 수 규모가 달라서(논란 50곳 vs 음식 15곳) 점수로 섞으면
-// 인물/이슈가 상위를 독차지함 → "카테고리 안 순위"로 뽑음. 각 카테고리 1위들 → 2위들 → ...,
-// 같은 순위끼리는 핵심 카테고리 먼저, 그다음 점수 순
+// 메인(종합) 랭킹: 카테고리 구분 없이 점수 순. 카테고리별 비교는 카테고리별 유행 페이지에서
 async function getMainRanking(days: number): Promise<RankedTopic[]> {
-  const topics = await aggregateTopics(days, MAIN_CATEGORIES.map((c) => c.name));
-  const isCore = new Map(MAIN_CATEGORIES.map((c) => [c.name as string, c.core]));
-
-  const rankInCategory = new Map<string | null, number>();
-  return topics
-    .map((topic) => {
-      const rank = rankInCategory.get(topic.category) ?? 0;
-      rankInCategory.set(topic.category, rank + 1);
-      return { topic, rank, core: isCore.get(topic.category ?? "") ? 0 : 1 };
-    })
-    .sort((a, b) => a.rank - b.rank || a.core - b.core || b.topic.score - a.topic.score)
-    .slice(0, RANKING_SIZE)
-    .map((e) => e.topic);
+  return (await aggregateTopics(days, MAIN_CATEGORIES.map((c) => c.name))).slice(0, RANKING_SIZE);
 }
 
 export async function getRankedSections() {
