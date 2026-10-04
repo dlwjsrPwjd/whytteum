@@ -1,9 +1,12 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import { getRankedSections, type RankedTopic } from "@/lib/trends";
 import { RankingSection } from "@/components/RankingSection";
 import { formatViews } from "@/lib/format";
 
 export default async function Home() {
+  // 요청 시점 API를 안 써서 빌드 때 정적 페이지로 굳어버림 → 매 요청마다 최신 랭킹을 읽도록
+  await connection();
   const sections = await getRankedSections();
   const spotlight = sections.recent[0];
 

@@ -149,8 +149,8 @@ jobs:
 - [ ] 반응형 UI (모바일 우선)
 
 ### Phase 5. Docker 프로덕션 빌드 & 배포 (3~4일)
-- [ ] `Dockerfile.web` 멀티스테이지 빌드 작성 (standalone 모드)
-- [ ] `docker-compose.yml` 프로덕션 구성 완료
+- [x] `Dockerfile.web` 멀티스테이지 빌드 작성 (standalone 모드) + `Dockerfile.cron`
+- [x] `docker-compose.yml` 프로덕션 구성 완료
 - [ ] Cloudflare Tunnel 연결하여 외부 접속 테스트
 
 ### Phase 6. GitHub Actions CI/CD 구축 (2~3일)

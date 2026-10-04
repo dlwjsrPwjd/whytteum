@@ -1,0 +1,57 @@
+# 프로덕션 구성: docker compose up -d --build
+# 개발용 DB(docker-compose.dev.yml, 프로젝트명 whytteum)와 컨테이너·볼륨이 겹치지 않게 프로젝트명을 분리
+name: whytteum-prod
+
+x-database-url: &database-url postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-whytteum}
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-whytteum}
+    # 호스트에 포트를 열지 않음 (web·cron만 내부 네트워크로 접근)
+    volumes:
+      - whytteum-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: *database-url
+      TZ: Asia/Seoul
+    ports:
+      # 개발 서버(next dev)가 3000을 쓰고 있으면 WEB_PORT=3001 처럼 바꿔서 실행
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  cron:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.cron
+    restart: unless-stopped
+    # sh가 PID 1이면 SIGTERM을 무시해서 stop 때 10초 뒤 강제 종료됨 → init 프로세스가 신호 전달
+    init: true
+    # API 키·Gemini 모델 등은 루트 .env에서, DATABASE_URL만 컨테이너용으로 덮어씀
+    env_file: .env
+    environment:
+      DATABASE_URL: *database-url
+      TZ: Asia/Seoul
+      COLLECT_INTERVAL_SECONDS: ${COLLECT_INTERVAL_SECONDS:-3600}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  whytteum-db:

@@ -63,6 +63,11 @@ whytteum/
 │   ├─ schema.prisma           # web과 cron이 함께 쓰는 DB 스키마
 │   └─ migrations/
 ├─ docs/                       # 기획서, 셋업 노트, 트러블슈팅
+├─ docker/
+│   ├─ Dockerfile.web          # Next.js standalone 멀티스테이지 빌드
+│   ├─ Dockerfile.cron         # 수집 워커 (시작 시 migrate deploy 후 주기 실행)
+│   └─ cron-loop.sh
+├─ docker-compose.yml          # 프로덕션: db + web + cron
 ├─ docker-compose.dev.yml      # 로컬 개발용 PostgreSQL
 └─ package.json                # npm workspaces 루트 + Prisma (web·cron 공용)
 ```
@@ -92,6 +97,19 @@ npm run summarize                     # 요약만 다시 만들 때
 ```
 
 > 스키마를 바꿀 때는 개발 서버를 먼저 끄세요. Windows에서는 실행 중인 서버가 Prisma 엔진 파일을 잡고 있어서 `prisma generate`가 실패합니다.
+
+## 프로덕션 실행 (Docker)
+
+```bash
+# 루트 .env의 API 키를 읽어 db + web + cron을 띄움 → http://localhost:3000
+docker compose up -d --build
+
+docker compose logs -f cron           # 수집 로그
+docker compose stop                   # 중지 (DB 데이터는 whytteum-db 볼륨에 유지)
+```
+
+- 개발용 DB(`docker-compose.dev.yml`)와는 프로젝트명(`whytteum-prod`)·볼륨이 분리돼 있어 동시에 띄워도 겹치지 않습니다. 개발 서버가 3000을 쓰고 있으면 `WEB_PORT=3001 docker compose up -d`.
+- cron 컨테이너는 시작할 때 `prisma migrate deploy`를 적용하고 `COLLECT_INTERVAL_SECONDS`(기본 1시간)마다 수집합니다.
 
 ## 참고
 

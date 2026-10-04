@@ -1,0 +1,18 @@
+**/node_modules
+**/.next
+**/*.tsbuildinfo
+.git
+.github
+.vscode
+.idea
+docs
+docker/data
+
+# 비밀값은 이미지에 굽지 않고 compose의 env_file로만 주입
+.env
+**/.env*
+!.env.example
+
+apps/cron/collect.log
+apps/cron/*.cmd
+apps/cron/*.vbs
