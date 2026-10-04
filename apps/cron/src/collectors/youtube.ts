@@ -16,6 +16,7 @@ import {
   EXPAND_COOLDOWN_HOURS,
   EXPAND_LOOKBACK_DAYS,
   EXPAND_PER_RUN,
+  EXPAND_TOP_SLOTS,
   GEMINI_SUMMARY_DELAY_MS,
   REFRESH_LOOKBACK_DAYS,
   SHORTS_MAX_SECONDS,
@@ -142,11 +143,10 @@ async function expand(registry: TopicRegistry, discovered: { keywordId: string; 
     where: { id: { in: discovered.map((d) => d.keywordId) } },
   });
   const channelCountById = new Map(discovered.map((d) => [d.keywordId, d.channelCount]));
-  const topicCandidates = discoveredTopics
+  const candidates = discoveredTopics
     .filter((k) => !k.lastExpandedAt || k.lastExpandedAt < cooldownSince)
-    .sort((a, b) => channelCountById.get(b.id)! - channelCountById.get(a.id)!)
-    .slice(0, EXPAND_PER_RUN)
-    .map((k) => k.text);
+    .sort((a, b) => channelCountById.get(b.id)! - channelCountById.get(a.id)!);
+  const topicCandidates = (await pickBalancedByCategory(candidates)).map((k) => k.text);
 
   const publishedAfter = hoursAgo(24 * EXPAND_LOOKBACK_DAYS);
   for (const topic of topicCandidates) {
@@ -163,6 +163,38 @@ async function expand(registry: TopicRegistry, discovered: { keywordId: string; 
     const channelCount = new Set(videos.map((v) => v.snippet.channelId)).size;
     console.log(`[YOUTUBE] 확장: "${topic}" 영상 ${videos.length}개 / 채널 ${channelCount}곳`);
   }
+}
+
+// 확장 대상 고르기. 채널 수 순으로만 뽑으면 원래 많이 잡히는 인물/이슈·정치·음악이 자리를 다 가져가서
+// 게임·음식 주제는 확장을 못 받고 채널 1~2곳에 머묾 → 상위 EXPAND_TOP_SLOTS개만 채널 수 순,
+// 나머지는 최근 확장을 적게 받은 카테고리부터 한 개씩 돌아가며 배정
+async function pickBalancedByCategory<T extends { id: string; category: string | null }>(sortedCandidates: T[]): Promise<T[]> {
+  const picked = sortedCandidates.slice(0, EXPAND_TOP_SLOTS);
+  const rest = sortedCandidates.slice(EXPAND_TOP_SLOTS);
+
+  const recentExpanded = await prisma.keyword.groupBy({
+    by: ["category"],
+    where: { lastExpandedAt: { gte: hoursAgo(24 * EXPAND_LOOKBACK_DAYS) } },
+    _count: { _all: true },
+  });
+  const expandedCount = new Map(recentExpanded.map((r) => [r.category, r._count._all]));
+
+  // 카테고리별 대기열 (각 대기열 안은 채널 수 순서 유지), 이번 회차에 이미 뽑힌 것도 반영
+  const queues = new Map<string | null, T[]>();
+  for (const k of rest) queues.set(k.category, [...(queues.get(k.category) ?? []), k]);
+  for (const k of picked) expandedCount.set(k.category, (expandedCount.get(k.category) ?? 0) + 1);
+
+  while (picked.length < EXPAND_PER_RUN && queues.size > 0) {
+    const order = [...queues.keys()].sort((a, b) => (expandedCount.get(a) ?? 0) - (expandedCount.get(b) ?? 0));
+    for (const category of order) {
+      if (picked.length >= EXPAND_PER_RUN) break;
+      const queue = queues.get(category)!;
+      picked.push(queue.shift()!);
+      expandedCount.set(category, (expandedCount.get(category) ?? 0) + 1);
+      if (queue.length === 0) queues.delete(category);
+    }
+  }
+  return picked;
 }
 
 // 3단계: 이번 실행에서 다시 조회하지 않은, 주제에 연결된 최근 영상들의 조회수 갱신 (videos.list라 저렴함)

@@ -25,6 +25,8 @@ export const DISCOVERY_QUERIES: { q: string; duration: "short" | "medium" }[] = 
 // 확장 검색: 주제 하나를 키워드로 다시 검색해서 "몇 개 채널이 다루는지"를 모음
 // (쿨다운 때문에 실제로는 회차당 3~8개만 돌아서, 탐색 쿼리 2개를 늘리면서 8 → 6으로 줄임)
 export const EXPAND_PER_RUN = 6;
+// 그중 채널 수 순으로 뽑는 자리 (크게 터진 주제용). 나머지는 카테고리별로 돌아가며 배정
+export const EXPAND_TOP_SLOTS = 2;
 export const EXPAND_LOOKBACK_DAYS = 7;
 // 이미 확장 검색한 주제는 이 시간이 지나기 전엔 다시 검색하지 않음
 export const EXPAND_COOLDOWN_HOURS = 12;
