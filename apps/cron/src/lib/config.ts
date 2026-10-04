@@ -1,6 +1,6 @@
 // YouTube Data API 일일 할당량(10,000 units) 안에서 돌리기 위한 값들.
 // search.list는 1회 100 units라 탐색/확장 검색 횟수가 비용의 대부분을 차지함.
-// (6 + 8) 검색 × 100 units × 하루 6회(4시간 간격) ≈ 8,400 units
+// (탐색 8 + 확장 6) 검색 × 100 units × 하루 6회(4시간 간격) ≈ 8,400 units
 
 // 작업 스케줄러는 1시간마다 돌지만, YouTube 탐색은 이 간격보다 자주 하지 않음
 export const DISCOVERY_INTERVAL_HOURS = 4;
@@ -17,10 +17,14 @@ export const DISCOVERY_QUERIES: { q: string; duration: "short" | "medium" }[] = 
   { q: "코디|화장품|올리브영", duration: "short" },
   // 인물/이슈(유튜버·연예인 논란), 정치 이슈용
   { q: "논란|근황|폭로", duration: "short" },
+  // 위 쿼리로는 거의 안 걸리던 드라마/예능, 음악/댄스, 게임용
+  { q: "드라마|예능|명장면", duration: "short" },
+  { q: "신곡|안무|게임", duration: "short" },
 ];
 
 // 확장 검색: 주제 하나를 키워드로 다시 검색해서 "몇 개 채널이 다루는지"를 모음
-export const EXPAND_PER_RUN = 8;
+// (쿨다운 때문에 실제로는 회차당 3~8개만 돌아서, 탐색 쿼리 2개를 늘리면서 8 → 6으로 줄임)
+export const EXPAND_PER_RUN = 6;
 export const EXPAND_LOOKBACK_DAYS = 7;
 // 이미 확장 검색한 주제는 이 시간이 지나기 전엔 다시 검색하지 않음
 export const EXPAND_COOLDOWN_HOURS = 12;
