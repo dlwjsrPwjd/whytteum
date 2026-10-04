@@ -19,9 +19,9 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -35,8 +35,11 @@ jobs:
       - name: Lint (web)
         run: npm run lint -w web
 
+      # LayoutProps 같은 라우트 타입은 next가 생성하므로(.next/types) 빌드 전 tsc에서는 typegen이 먼저 필요
       - name: Type check (web)
-        run: npx tsc --noEmit -p apps/web
+        run: |
+          npx next typegen apps/web
+          npx tsc --noEmit -p apps/web
 
       - name: Type check (cron)
         run: npx tsc --noEmit -p apps/cron
@@ -55,7 +58,7 @@ jobs:
         # Windows PowerShell 5.1은 BOM 없는 스크립트의 한글을 깨뜨리므로 run 안의 문자열은 영어로만
         shell: powershell
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # API 키는 GitHub에 올리지 않고, 러너 폴더의 .env에 적어둔 이 PC의 .env 경로에서 복사
       - name: .env 준비

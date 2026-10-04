@@ -107,6 +107,23 @@ cd C:\actions-runner
 
 성공하면 `services.msc`에 `actions.runner.dlwjsrPwjd-whytteum.DESKTOP-605FJAA-runner` 같은 이름의 서비스가 생기고, 위 6번 명령의 `status`가 `online`으로 바뀐다.
 
+> **2026-10-04: 서비스 대신 "로그인 시 실행" 작업으로 바꿈** (아래 8번)
+
+## 8. 실제로 쓰는 방식: 로그인할 때 창 없이 실행 (작업 스케줄러)
+
+**왜 서비스를 안 쓰나**
+- 서비스 기본 계정(`NETWORK SERVICE`)은 Docker Desktop에 접근할 수 없다. Docker Desktop 엔진은 로그인한 사용자 세션에서 돌고 `docker-users` 그룹만 붙을 수 있어서, 배포 잡의 `docker compose`가 실패한다.
+- 어차피 Docker Desktop도 로그인해야 켜지므로, 러너도 로그인할 때 같은 사용자 권한으로 뜨는 게 맞다. 이 방식은 관리자 권한도 필요 없다.
+
+**구성**
+- `C:\actions-runner\run-hidden.vbs`: `run.cmd`를 콘솔 창 없이 실행하고 출력은 `runner.log`로. (`cmd /c`가 바깥 따옴표를 떼어내므로 명령 전체를 따옴표로 한 번 더 감싸야 함 — 안 감쌌더니 바로 종료(결과 1)됨)
+- 작업 스케줄러 `WhyTteum-Runner`: 트리거 = 로그온, 시간 제한 없음, 실패 시 1분 간격 3회 재시작
+- `C:\actions-runner\.env`: `WHYTTEUM_ENV_FILE=<프로젝트 .env 경로>` — 러너가 시작할 때 잡 환경변수로 넣어줌. 배포 잡이 이 경로의 `.env`를 복사해서 쓰므로 API 키를 GitHub Secrets에 올릴 필요가 없다. (Windows 사용자 이름과 사용자 폴더 이름이 다를 수 있으니 `$env:USERPROFILE` 기준으로 경로를 만들 것)
+
+**14일 오프라인이면 GitHub가 러너를 지운다**: 9/11에 등록만 하고 안 켜뒀더니 10/4에 GitHub 러너 목록에서 사라져 있었다. 로컬의 `.runner`는 남아 있으므로 `config.cmd remove --token <remove-token>`으로 로컬 설정을 지우고 5번부터 다시 등록했다.
+
+**보안 설정 확인**: `gh api repos/dlwjsrPwjd/whytteum/actions/permissions/fork-pr-contributor-approval` → `all_external_contributors`(외부 기여자 PR은 전부 승인 필요). 추가로 워크플로의 배포 잡은 `pull_request` 이벤트에서 실행되지 않게 막아 두었다.
+
 ## 참고: 러너 제거하는 법 (나중에 필요할 때)
 
 ```powershell

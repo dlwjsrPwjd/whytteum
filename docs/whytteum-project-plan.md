@@ -122,7 +122,7 @@ jobs:
 - [x] GitHub 저장소 생성 (이름: `whytteum`, **public** — 포트폴리오 공개 목적. 단, self-hosted runner 보안 설정(Fork PR 승인 필수)을 함께 적용) — `dlwjsrPwjd/whytteum`, public 확인됨. Fork PR 승인 설정은 아래 runner 등록 시 함께 적용
 - [x] `.gitignore` 설정 (Next.js 기본값 + `.env`, `node_modules`, `.next` 포함)
 - [x] 로컬 프로젝트 초기화 후 원격 저장소 연결 (`git init` → `remote add` → 초기 커밋 push)
-- [ ] self-hosted runner 등록: 저장소 Settings → Actions → Runners에서 안내 스크립트를 PC에서 실행, 상시 실행되도록 서비스 등록 (진행 중 — 절차는 README 또는 아래 안내 참고)
+- [x] self-hosted runner 등록 (서비스 대신 로그인 시 실행 작업으로 상시 실행 — `docs/github-actions-runner-guide.md` 8번)
 - [x] Docker, Docker Compose 설치 확인 (Docker 29.5.3 / Compose v5.1.4)
 - [ ] Cloudflare Tunnel 설정 (`cloudflared` 설치, 터널 생성) — **Quick Tunnel 방식 채택** (무료, 도메인 불필요, 재시작마다 주소 변경)
 - [x] Gemini API 키 발급 (Google AI Studio) — `.env`에 설정 및 테스트 호출 확인
@@ -154,10 +154,10 @@ jobs:
 - [ ] Cloudflare Tunnel 연결하여 외부 접속 테스트
 
 ### Phase 6. GitHub Actions CI/CD 구축 (2~3일)
-- [ ] self-hosted runner 정상 동작 확인
-- [ ] `deploy.yml` 작성 및 push 트리거 테스트
-- [ ] lint/type-check 단계 추가
-- [ ] 배포 실패 시 롤백 전략 간단히 문서화 (예: 이전 이미지 태그 유지)
+- [x] self-hosted runner 정상 동작 확인
+- [ ] `.github/workflows/ci.yml`의 deploy 잡 작성 및 main push 트리거 테스트
+- [x] lint/type-check/build 단계 추가 (check 잡)
+- [x] 배포 실패 시 롤백: 배포 전 이미지를 `:prev`로 태그, 헬스체크 실패 시 되돌려 재기동
 
 ### Phase 7. 마무리
 - [ ] README 작성 (아키텍처 다이어그램 포함)
