@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { RankedTopic } from "@/lib/trends";
+import { RisingBadge } from "./RisingBadge";
 
 const ROTATE_INTERVAL_MS = 3000;
 
@@ -19,6 +20,7 @@ export function RankingSection({
   items,
   highlight = false,
   from,
+  showAll = false,
 }: {
   title: string;
   period: string;
@@ -27,9 +29,11 @@ export function RankingSection({
   highlight?: boolean;
   // 상세 페이지의 "뒤로" 링크가 돌아올 경로 (없으면 메인 랭킹)
   from?: string;
+  // true면 5개씩 번갈아 보여주지 않고 전체 순위를 한 번에 표시
+  showAll?: boolean;
 }) {
   const [showSecondHalf, setShowSecondHalf] = useState(false);
-  const hasSecondHalf = items.length > 5;
+  const hasSecondHalf = !showAll && items.length > 5;
 
   useEffect(() => {
     if (!hasSecondHalf) return;
@@ -40,7 +44,7 @@ export function RankingSection({
   }, [hasSecondHalf]);
 
   const rankOffset = showSecondHalf ? 5 : 0;
-  const visible = items.slice(rankOffset, rankOffset + 5);
+  const visible = showAll ? items : items.slice(rankOffset, rankOffset + 5);
   // 채널 수 막대 길이는 해당 기간 최대 채널 수 대비 비율 (순위는 조회수도 반영하므로 1위가 최대가 아닐 수 있음)
   const maxChannels = Math.max(1, ...items.map((item) => item.channelCount));
 
@@ -98,6 +102,7 @@ export function RankingSection({
                       />
                     </span>
                   </span>
+                  <RisingBadge count={item.risingChannelCount} />
                   <span className="shrink-0 text-xs font-medium text-stone-400">
                     {item.channelCount}채널
                   </span>

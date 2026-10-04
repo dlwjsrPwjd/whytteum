@@ -2,6 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { getRankedSections, type RankedTopic } from "@/lib/trends";
 import { RankingSection } from "@/components/RankingSection";
+import { RisingBadge } from "@/components/RisingBadge";
 import { formatViews } from "@/lib/format";
 
 export default async function Home() {
@@ -51,6 +52,7 @@ function Spotlight({ topic }: { topic: RankedTopic }) {
         <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
           <span className="rounded-full bg-white/20 px-2.5 py-1">👑 지금 1위</span>
           {topic.category && <span className="rounded-full bg-white/20 px-2.5 py-1">{topic.category}</span>}
+          <RisingBadge count={topic.risingChannelCount} onDark />
         </div>
         <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">{topic.title}</h2>
         {topic.summary && (

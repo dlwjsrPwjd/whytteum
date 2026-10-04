@@ -1,14 +1,17 @@
-import { getCategoryOverview, getRankedSections, isTrendCategory } from "@/lib/trends";
+import { getCategoryOverview, getRanking, isTrendCategory, parsePeriod } from "@/lib/trends";
+import { DEFAULT_CATEGORY_PERIOD, RANKING_PERIODS, TREND_CATEGORIES, type RankingPeriodDays } from "@/lib/ranking-config";
+import { categoriesHref } from "@/lib/categories-url";
 import { RankingSection } from "@/components/RankingSection";
 import { CategoryChips } from "@/components/CategoryChips";
 
 export default async function CategoriesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string }>;
+  searchParams: Promise<{ category?: string; period?: string }>;
 }) {
   const params = await searchParams;
   const category = isTrendCategory(params.category) ? params.category : undefined;
+  const period = parsePeriod(params.period) ?? DEFAULT_CATEGORY_PERIOD;
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-10 sm:px-6">
@@ -22,30 +25,38 @@ export default async function CategoriesPage({
         </p>
       </header>
 
-      <CategoryChips active={category} />
+      <CategoryChips active={category} period={period} />
 
-      {category ? <CategoryDetail category={category} /> : <Overview />}
+      {category ? <CategoryDetail category={category} period={period} /> : <Overview period={period} />}
     </div>
   );
 }
 
-// 카테고리 하나를 골랐을 때: 메인과 같은 3일/7일/30일 랭킹
-async function CategoryDetail({ category }: { category: string }) {
-  const sections = await getRankedSections(category);
-  const from = `/categories?category=${encodeURIComponent(category)}`;
+// 카테고리 하나를 골랐을 때: 선택한 기간의 순위를 한 번에 전부
+async function CategoryDetail({ category, period }: { category: string; period: RankingPeriodDays }) {
+  const items = await getRanking(period, category);
+  const info = RANKING_PERIODS.find((p) => p.days === period)!;
+  const emoji = TREND_CATEGORIES.find((c) => c.name === category)?.emoji ?? info.emoji;
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-      <RankingSection title="요즘 뜨는" period="3일" emoji="🔥" items={sections.recent} highlight from={from} />
-      <RankingSection title="이번 주" period="7일" emoji="🗓️" items={sections.weekly} from={from} />
-      <RankingSection title="이번 달" period="30일" emoji="📆" items={sections.monthly} from={from} />
+    <div className="max-w-2xl">
+      <RankingSection
+        title={category}
+        period={info.label}
+        emoji={emoji}
+        items={items}
+        highlight
+        showAll
+        from={categoriesHref(category, period)}
+      />
     </div>
   );
 }
 
-// 카테고리를 안 골랐을 때: 카테고리마다 이번 주 랭킹을 카드로
-async function Overview() {
-  const overview = await getCategoryOverview();
+// 카테고리를 안 골랐을 때: 카테고리마다 선택한 기간의 랭킹을 카드로
+async function Overview({ period }: { period: RankingPeriodDays }) {
+  const overview = await getCategoryOverview(period);
+  const info = RANKING_PERIODS.find((p) => p.days === period)!;
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -53,10 +64,10 @@ async function Overview() {
         <RankingSection
           key={category.name}
           title={category.name}
-          period="7일"
+          period={info.label}
           emoji={category.emoji}
           items={category.items}
-          from="/categories"
+          from={categoriesHref(undefined, period)}
         />
       ))}
     </div>
