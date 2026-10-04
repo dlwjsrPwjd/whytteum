@@ -32,12 +32,13 @@ export default async function CategoriesPage({
 // 카테고리 하나를 골랐을 때: 메인과 같은 3일/7일/30일 랭킹
 async function CategoryDetail({ category }: { category: string }) {
   const sections = await getRankedSections(category);
+  const from = `/categories?category=${encodeURIComponent(category)}`;
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-      <RankingSection title="요즘 뜨는" period="3일" emoji="🔥" items={sections.recent} highlight />
-      <RankingSection title="이번 주" period="7일" emoji="🗓️" items={sections.weekly} />
-      <RankingSection title="이번 달" period="30일" emoji="📆" items={sections.monthly} />
+      <RankingSection title="요즘 뜨는" period="3일" emoji="🔥" items={sections.recent} highlight from={from} />
+      <RankingSection title="이번 주" period="7일" emoji="🗓️" items={sections.weekly} from={from} />
+      <RankingSection title="이번 달" period="30일" emoji="📆" items={sections.monthly} from={from} />
     </div>
   );
 }
@@ -55,6 +56,7 @@ async function Overview() {
           period="7일"
           emoji={category.emoji}
           items={category.items}
+          from="/categories"
         />
       ))}
     </div>

@@ -18,12 +18,15 @@ export function RankingSection({
   emoji,
   items,
   highlight = false,
+  from,
 }: {
   title: string;
   period: string;
   emoji: string;
   items: RankedTopic[];
   highlight?: boolean;
+  // 상세 페이지의 "뒤로" 링크가 돌아올 경로 (없으면 메인 랭킹)
+  from?: string;
 }) {
   const [showSecondHalf, setShowSecondHalf] = useState(false);
   const hasSecondHalf = items.length > 5;
@@ -74,7 +77,7 @@ export function RankingSection({
             return (
               <li key={item.id}>
                 <Link
-                  href={`/keyword/${item.id}`}
+                  href={from ? `/keyword/${item.id}?from=${encodeURIComponent(from)}` : `/keyword/${item.id}`}
                   className="group flex items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-coral-50 dark:hover:bg-coral-950/40"
                 >
                   <span

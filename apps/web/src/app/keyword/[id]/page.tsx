@@ -6,10 +6,17 @@ import { formatDate, formatViews } from "@/lib/format";
 
 export default async function KeywordDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string }>;
 }) {
   const { id } = await params;
+  const { from } = await searchParams;
+  // 카테고리 페이지에서 들어온 경우만 그쪽으로 돌려보냄 (임의 URL로 이동하지 않게 경로 제한)
+  const fromCategories = from === "/categories" || from?.startsWith("/categories?");
+  const backHref = fromCategories ? from! : "/";
+  const backLabel = fromCategories ? "← 카테고리로" : "← 랭킹으로";
   const detail = await getKeywordDetail(id);
   if (!detail) notFound();
 
@@ -20,10 +27,10 @@ export default async function KeywordDetailPage({
     <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-10 sm:px-6">
       <header className="flex flex-col gap-3">
         <Link
-          href="/"
+          href={backHref}
           className="self-start text-sm text-stone-500 transition-colors hover:text-coral-600 dark:text-stone-400 dark:hover:text-coral-400"
         >
-          ← 랭킹으로
+          {backLabel}
         </Link>
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">{keyword.text}</h1>
@@ -64,7 +71,7 @@ export default async function KeywordDetailPage({
           {videos.map((video) => (
             <li key={video.id}>
               <a
-                href={video.sourceUrl ?? "#"}
+                href={videoHref(video)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group flex gap-3 rounded-2xl border border-stone-200 bg-white p-2.5 transition-all hover:-translate-y-0.5 hover:border-coral-200 hover:shadow-md dark:border-stone-800 dark:bg-stone-900 dark:hover:border-coral-900"
@@ -104,6 +111,13 @@ export default async function KeywordDetailPage({
       </section>
     </div>
   );
+}
+
+// 쇼츠를 watch?v= 주소로 열면 일반 플레이어에서 재생이 안 되는 경우가 있어 쇼츠 주소로 연결
+// (쇼츠가 아닌 영상을 /shorts/로 열면 유튜브가 일반 영상 페이지로 넘겨줌)
+function videoHref(video: { youtubeVideoId: string | null; isShort: boolean; sourceUrl: string | null }) {
+  if (video.youtubeVideoId && video.isShort) return `https://www.youtube.com/shorts/${video.youtubeVideoId}`;
+  return video.sourceUrl ?? "#";
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
