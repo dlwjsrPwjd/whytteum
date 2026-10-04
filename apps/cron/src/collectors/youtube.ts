@@ -216,14 +216,12 @@ export async function summarizeTopTopics() {
       take: 20,
       select: { title: true },
     });
-    const newsTitles = await getGoogleTrendsNewsTitles(keyword.text);
 
     try {
       const summary = await summarizeTopic({
         topic: keyword.text,
         category: keyword.category,
         videoTitles: videos.map((v) => v.title),
-        newsTitles,
       });
       await prisma.keyword.update({
         where: { id: keyword.id },
@@ -234,24 +232,6 @@ export async function summarizeTopTopics() {
       console.error(`[YOUTUBE] 요약 실패 ("${keyword.text}"):`, err instanceof Error ? err.message : err);
     }
   }
-}
-
-// 같은 이름의 구글 트렌드 검색어가 있으면 RSS에 딸려온 뉴스 기사 제목을 요약 근거로 같이 씀
-async function getGoogleTrendsNewsTitles(topic: string): Promise<string[]> {
-  const items = await prisma.trendItem.findMany({
-    where: { source: "GOOGLE_TRENDS", title: topic, collectedAt: { gte: hoursAgo(24 * EXPAND_LOOKBACK_DAYS) } },
-    select: { rawData: true },
-  });
-
-  const titles: string[] = [];
-  for (const { rawData } of items) {
-    const news = (rawData as { news_item?: unknown } | null)?.news_item;
-    for (const n of Array.isArray(news) ? news : news ? [news] : []) {
-      const title = (n as { news_item_title?: string }).news_item_title;
-      if (title) titles.push(decodeHtmlEntities(title));
-    }
-  }
-  return [...new Set(titles)].slice(0, 10);
 }
 
 export async function collectYouTubeTrends() {

@@ -2,18 +2,13 @@ import "./env.js";
 import type { TrendSource } from "@prisma/client";
 import { prisma } from "./prismaClient.js";
 import { collectYouTubeTrends } from "./collectors/youtube.js";
-import { collectGoogleTrends } from "./collectors/googleTrends.js";
 
 interface Collector {
   source: TrendSource;
   run: () => Promise<{ itemsCollected: number; skipped?: boolean }>;
 }
 
-const collectors: Collector[] = [
-  // 구글 트렌드 검색어를 YouTube 확장 검색 후보로 쓰기 때문에 먼저 수집
-  { source: "GOOGLE_TRENDS", run: collectGoogleTrends },
-  { source: "YOUTUBE", run: collectYouTubeTrends },
-];
+const collectors: Collector[] = [{ source: "YOUTUBE", run: collectYouTubeTrends }];
 
 async function main() {
   for (const { source, run } of collectors) {

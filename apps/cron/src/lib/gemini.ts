@@ -120,22 +120,18 @@ export async function summarizeTopic({
   topic,
   category,
   videoTitles,
-  newsTitles,
 }: {
   topic: string;
   category: string | null;
   videoTitles: string[];
-  newsTitles: string[];
 }): Promise<string> {
   const videos = videoTitles.map((t) => `- ${t}`).join("\n");
-  const news =
-    newsTitles.length > 0 ? `\n\n[뉴스 기사 제목]\n${newsTitles.map((t) => `- ${t}`).join("\n")}` : "";
 
   const summary = await callGemini(
-    `"${topic}"(${category ?? "기타"})이(가) 요즘 한국에서 화제다. 아래는 이 주제를 다룬 최근 영상과 기사 제목이다.
+    `"${topic}"(${category ?? "기타"})이(가) 요즘 한국에서 화제다. 아래는 이 주제를 다룬 최근 유튜브 영상 제목이다.
 
 [유튜브 영상 제목]
-${videos}${news}
+${videos}
 
 이 자료를 근거로, 이 주제가 "왜" 요즘 화제인지 일반 독자가 이해하기 쉽게 한국어로 2~3문장으로 설명해줘.
 - 제목들에서 공통으로 확인되는 내용 위주로 쓴다.

@@ -29,7 +29,7 @@
 | 스타일 | Tailwind CSS |
 | ORM | Prisma |
 | DB | PostgreSQL (Docker) |
-| 데이터 | YouTube Data API v3, Google Trends RSS |
+| 데이터 | YouTube Data API v3 (쇼츠 검색) |
 | AI | Gemini API (주제 추출: Flash-Lite, 요약: Flash) |
 | 컨테이너 | Docker, Docker Compose |
 | 외부 노출 | Cloudflare Tunnel (예정) |
