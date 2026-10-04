@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "collect": "tsx src/index.ts",
-    "summarize": "tsx src/summarize.ts"
+    "summarize": "tsx src/summarize.ts",
+    "reclassify": "tsx src/reclassify.ts"
   },
   "dependencies": {
     "dotenv": "^16"

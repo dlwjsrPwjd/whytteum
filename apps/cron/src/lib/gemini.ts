@@ -1,3 +1,5 @@
+import { GEMINI_RETRY_DELAYS_MS } from "./config.js";
+
 interface GeminiResponse {
   candidates?: { content?: { parts?: { text?: string }[] } }[];
 }
@@ -10,13 +12,20 @@ async function callGemini(prompt: string, model = process.env.GEMINI_MODEL ?? "g
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-    }),
-  });
+  // 429(분당 한도)·503(서버 혼잡)은 잠시 뒤 다시 하면 대부분 성공해서 기다렸다가 재시도
+  let res: Response;
+  for (let attempt = 0; ; attempt++) {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+      }),
+    });
+    if (res.ok || ![429, 503].includes(res.status) || attempt >= GEMINI_RETRY_DELAYS_MS.length) break;
+    console.warn(`[GEMINI] ${res.status} → ${GEMINI_RETRY_DELAYS_MS[attempt] / 1000}초 뒤 재시도`);
+    await new Promise((resolve) => setTimeout(resolve, GEMINI_RETRY_DELAYS_MS[attempt]));
+  }
 
   if (!res.ok) {
     throw new Error(`Gemini API 요청 실패 (${res.status}): ${await res.text()}`);
@@ -55,6 +64,21 @@ export const TOPIC_CATEGORIES = [
 // 사회 뉴스·스포츠 경기처럼 유행이 아닌 주제. 주제로 저장하지 않고 버림
 export const EXCLUDED_CATEGORY = "제외";
 
+// 주제 추출과 재분류가 같은 기준을 쓰도록 공통 규칙으로 둠
+// (예전엔 기준이 "유행이면 해당 카테고리" 정도라 영상 맥락에 끌려가서 "가수 + 햄버거 영상" → 음식으로 분류됨)
+const CATEGORY_RULES = `- category는 다음 중 하나: ${TOPIC_CATEGORIES.join(", ")}, ${EXCLUDED_CATEGORY}
+- 영상이 무슨 내용인지가 아니라 "화제 대상 자체가 무엇인지"로 분류한다. 가수가 햄버거를 먹는 영상이어도 가수는 음악/댄스다.
+  - 음식/디저트: 음식, 메뉴, 디저트, 음료, 식품·외식 브랜드
+  - 패션/뷰티: 옷, 화장품, 패션·뷰티 브랜드나 매장
+  - 아이템/쇼핑: 장난감, 완구, 캐릭터 굿즈, 생활용품, 유행하는 물건이나 쇼핑 매장
+  - 밈/챌린지: 밈, 유행어, 챌린지 이름
+  - 음악/댄스: 가수, 아이돌 그룹과 그 멤버, 댄서, 노래, 안무 (논란이나 근황 영상이어도 음악/댄스)
+  - 드라마/예능: 드라마, 예능 프로그램, 영화 등 작품 이름
+  - 게임: 게임 이름, 프로게이머
+  - 인물/이슈: 배우, 방송인, 유튜버, 인플루언서, 운동선수 등 개인의 논란이나 근황 (가수·아이돌은 음악/댄스, 정치인은 정치)
+  - 정치: 정치인, 정당, 선거, 정치 이슈, 북한
+  - ${EXCLUDED_CATEGORY}: 사회 뉴스(사건·사고), 스포츠 경기 결과, 해외 뉴스처럼 유행도 정치도 아닌 것`;
+
 export interface ExtractedTopic {
   topic: string;
   category: string;
@@ -77,11 +101,7 @@ ${numbered}
 - "아이돌", "먹방", "학교", "요즘 아이들"처럼 일반적인 단어나 장르는 화제 대상이 아니다. 제외한다.
 - 한국 시청자와 관계없는 해외 영상(영어 밈, 해외 로블록스 등)은 제외한다.
 - 같은 대상을 다르게 쓴 경우 하나로 합친다. 아래 "기존 주제 목록"에 같은 대상이 있으면 그 표기를 그대로 쓴다.
-- category는 다음 중 하나: ${TOPIC_CATEGORIES.join(", ")}, ${EXCLUDED_CATEGORY}
-  - 사람들이 따라 하고, 먹고, 사고, 보고, 듣는 "유행"이면 해당 카테고리로 분류한다.
-  - 인물/이슈: 유튜버·연예인·인플루언서의 논란이나 화제. 정치인은 여기에 넣지 않는다.
-  - 정치: 정치인, 정당, 선거, 정치 이슈.
-  - ${EXCLUDED_CATEGORY}: 사회 뉴스(사건·사고), 스포츠 경기 결과, 해외 뉴스처럼 유행도 정치도 아닌 것.
+${CATEGORY_RULES}
 
 기존 주제 목록: ${existing}
 
@@ -114,6 +134,44 @@ export async function extractTopics(titles: string[], existingTopics: string[]):
     topics.push({ topic: entry.topic.trim(), category: entry.category, videoIndexes });
   }
   return topics;
+}
+
+// 이미 있는 주제들을 공통 기준으로 다시 분류 (기존 데이터 정리용, npm run reclassify)
+export async function classifyTopics(
+  topics: { topic: string; videoTitles: string[] }[],
+): Promise<Map<number, string>> {
+  const list = topics
+    .map((t, i) => `${i}. ${t.topic}\n${t.videoTitles.map((title) => `   - ${title}`).join("\n")}`)
+    .join("\n");
+
+  const raw = await callGemini(`다음은 한국 유튜브에서 화제가 된 주제들과, 각 주제를 다룬 영상 제목 일부다.
+각 주제가 어느 카테고리인지 분류해줘.
+
+${list}
+
+규칙:
+${CATEGORY_RULES}
+
+다른 설명 없이 아래 형식의 JSON 배열로만 응답해줘. index는 주제 번호다.
+[{"index": 0, "category": "음악/댄스"}]`,
+    // 한 번만 돌리는 정리 작업이라 정확도가 나은 요약 모델 사용
+    process.env.GEMINI_SUMMARY_MODEL || process.env.GEMINI_MODEL,
+  );
+
+  const result = new Map<number, string>();
+  let parsed: unknown;
+  try {
+    parsed = parseJsonResponse(raw);
+  } catch {
+    console.error("[GEMINI] 재분류 응답 JSON 파싱 실패:", raw.slice(0, 300));
+    return result;
+  }
+  if (!Array.isArray(parsed)) return result;
+  const allowed: string[] = [...TOPIC_CATEGORIES, EXCLUDED_CATEGORY];
+  for (const entry of parsed) {
+    if (Number.isInteger(entry?.index) && allowed.includes(entry?.category)) result.set(entry.index, entry.category);
+  }
+  return result;
 }
 
 export async function summarizeTopic({

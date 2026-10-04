@@ -50,3 +50,6 @@ export const SUMMARY_REFRESH_HOURS = 24;
 export const GEMINI_CALL_DELAY_MS = 4100;
 // 주제 요약은 GEMINI_SUMMARY_MODEL(lite보다 상위 모델)을 쓰는데, 무료 한도가 더 낮을 수 있어 간격을 넉넉히 둠
 export const GEMINI_SUMMARY_DELAY_MS = 7000;
+
+// Gemini 429·503 응답 시 재시도 대기 시간 (최대 이 개수만큼 재시도)
+export const GEMINI_RETRY_DELAYS_MS = [15_000, 45_000];

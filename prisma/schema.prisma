@@ -56,6 +56,8 @@ model Keyword {
   text           String         @unique
   // 주제(토픽) 단위 정보: Gemini 분류 카테고리, 주제별 AI 요약, 마지막 확장 검색 시각
   category       String?
+  // 탐색 회차마다 Gemini가 낸 분류 횟수 {"음악/댄스": 3, "음식/디저트": 1} — category는 최다 득표
+  categoryVotes  Json           @default("{}")
   summary        String?
   summaryAt      DateTime?
   lastExpandedAt DateTime?

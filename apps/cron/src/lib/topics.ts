@@ -1,4 +1,4 @@
-import type { Keyword } from "@prisma/client";
+import type { Keyword, Prisma } from "@prisma/client";
 import { prisma } from "../prismaClient.js";
 
 // "두바이 쫀득쿠키", "두바이쫀득쿠키"처럼 띄어쓰기/대소문자만 다른 표기를 같은 주제로 보기 위한 정규화
@@ -30,19 +30,24 @@ export class TopicRegistry {
     return this.byNormalized.get(normalizeTopic(text));
   }
 
+  // category는 이번 탐색에서 Gemini가 낸 분류(확장 단계처럼 분류가 없으면 null).
+  // 회차마다 덮어쓰면 영상 맥락에 따라 흔들려서("가수 + 햄버거 영상" → 음식) 득표를 쌓고 최다 득표를 씀
   async findOrCreate(text: string, category: string | null): Promise<Keyword> {
     const existing = this.find(text);
     if (existing) {
-      // 카테고리 체계가 바뀌었거나 이전 분류가 틀렸을 수 있으므로 가장 최근 분류를 따름
-      if (category && existing.category !== category) {
-        const updated = await prisma.keyword.update({ where: { id: existing.id }, data: { category } });
-        this.byNormalized.set(normalizeTopic(text), updated);
-        return updated;
-      }
-      return existing;
+      if (!category) return existing;
+      const votes = addVote(existing.categoryVotes, category);
+      const updated = await prisma.keyword.update({
+        where: { id: existing.id },
+        data: { categoryVotes: votes, category: topVote(votes, existing.category) },
+      });
+      this.byNormalized.set(normalizeTopic(text), updated);
+      return updated;
     }
 
-    const created = await prisma.keyword.create({ data: { text, category } });
+    const created = await prisma.keyword.create({
+      data: { text, category, categoryVotes: category ? { [category]: 1 } : {} },
+    });
     this.byNormalized.set(normalizeTopic(text), created);
     return created;
   }
@@ -54,6 +59,27 @@ export class TopicRegistry {
     });
     this.byNormalized.set(normalizeTopic(updated.text), updated);
   }
+}
+
+export type CategoryVotes = Record<string, number>;
+
+function addVote(raw: Prisma.JsonValue, category: string): CategoryVotes {
+  const votes: CategoryVotes = raw && typeof raw === "object" && !Array.isArray(raw) ? { ...(raw as CategoryVotes) } : {};
+  votes[category] = (votes[category] ?? 0) + 1;
+  return votes;
+}
+
+// 최다 득표 카테고리. 동점이면 지금 카테고리를 유지
+export function topVote(votes: CategoryVotes, current: string | null): string | null {
+  let best = current;
+  let bestCount = current ? (votes[current] ?? 0) : 0;
+  for (const [category, count] of Object.entries(votes)) {
+    if (count > bestCount) {
+      best = category;
+      bestCount = count;
+    }
+  }
+  return best;
 }
 
 export async function linkVideosToTopic(keywordId: string, trendItemIds: string[]) {
