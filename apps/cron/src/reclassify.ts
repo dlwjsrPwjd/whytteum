@@ -1,13 +1,12 @@
 import "./env.js";
 import { prisma } from "./prismaClient.js";
 import { TOPIC_CATEGORIES, classifyTopics } from "./lib/gemini.js";
-import { GEMINI_SUMMARY_DELAY_MS } from "./lib/config.js";
+import { CONFIRMED_CATEGORY_WEIGHT, GEMINI_SUMMARY_DELAY_MS } from "./lib/config.js";
 
 // 기존 주제 전체를 공통 분류 기준으로 다시 분류 (npm run reclassify, DRY_RUN=1이면 바꿀 내용만 출력)
-// 새 분류는 득표 RECLASSIFY_WEIGHT로 넣어서, 이후 탐색에서 한두 번 엉뚱하게 분류돼도 뒤집히지 않게 함
+// 새 분류는 득표 CONFIRMED_CATEGORY_WEIGHT로 넣어서, 이후 탐색에서 한두 번 엉뚱하게 분류돼도 뒤집히지 않게 함
 const BATCH_SIZE = 40;
 const TITLES_PER_TOPIC = 5;
-const RECLASSIFY_WEIGHT = 3;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -33,9 +32,13 @@ async function main() {
   for (let start = 0; start < keywords.length; start += BATCH_SIZE) {
     if (start > 0) await sleep(GEMINI_SUMMARY_DELAY_MS);
     const batch = keywords.slice(start, start + BATCH_SIZE);
+    // 상위 모델이 503(과부하)으로 재시도까지 실패해도 다른 배치는 계속 진행 (실패한 배치는 기존 분류 유지)
     const result = await classifyTopics(
       batch.map((k) => ({ topic: k.text, videoTitles: k.videoKeywords.map((vk) => vk.trendItem.title.slice(0, 80)) })),
-    );
+    ).catch((err) => {
+      console.error(`[RECLASSIFY] 배치 실패:`, err instanceof Error ? err.message.slice(0, 200) : err);
+      return new Map<number, string>();
+    });
 
     for (const [index, keyword] of batch.entries()) {
       const category = result.get(index);
@@ -47,7 +50,7 @@ async function main() {
       if (!dryRun) {
         await prisma.keyword.update({
           where: { id: keyword.id },
-          data: { category, categoryVotes: { [category]: RECLASSIFY_WEIGHT } },
+          data: { category, categoryVotes: { [category]: CONFIRMED_CATEGORY_WEIGHT } },
         });
       }
     }

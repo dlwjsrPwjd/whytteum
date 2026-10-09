@@ -1,6 +1,5 @@
 import { prisma } from "./prisma";
 import {
-  HIDDEN_FROM_ALL_CATEGORIES,
   MIN_CHANNEL_COUNT,
   RANKING_PERIODS,
   RANKING_SIZE,
@@ -33,9 +32,6 @@ export function isTrendCategory(name: string | undefined): name is string {
 export function parsePeriod(value: string | undefined): RankingPeriodDays | undefined {
   return RANKING_PERIODS.find((p) => String(p.days) === value)?.days;
 }
-
-// 메인 랭킹에 섞는 카테고리 = 유행 카테고리 중 HIDDEN_FROM_ALL_CATEGORIES를 뺀 것
-const MAIN_CATEGORIES = TREND_CATEGORIES.filter((c) => !HIDDEN_FROM_ALL_CATEGORIES.includes(c.name));
 
 // 기간 안에 "올라온" 영상 기준으로 주제별 확산 정도를 집계 (점수 내림차순, 개수 제한 없음)
 async function aggregateTopics(days: number, categories: readonly string[]): Promise<RankedTopic[]> {
@@ -101,7 +97,7 @@ async function aggregateTopics(days: number, categories: readonly string[]): Pro
 
 // 메인(종합) 랭킹: 카테고리 구분 없이 점수 순. 카테고리별 비교는 카테고리별 유행 페이지에서
 async function getMainRanking(days: number): Promise<RankedTopic[]> {
-  return (await aggregateTopics(days, MAIN_CATEGORIES.map((c) => c.name))).slice(0, RANKING_SIZE);
+  return (await aggregateTopics(days, TREND_CATEGORIES.map((c) => c.name))).slice(0, RANKING_SIZE);
 }
 
 export async function getRankedSections() {

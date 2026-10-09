@@ -10,6 +10,7 @@ import {
   type YoutubeVideo,
 } from "../lib/youtubeApi.js";
 import {
+  CONFIRMED_CATEGORY_WEIGHT,
   CORE_CATEGORIES,
   DISCOVERY_INTERVAL_HOURS,
   DISCOVERY_LOOKBACK_HOURS,
@@ -166,7 +167,7 @@ async function expand(registry: TopicRegistry, discovered: { keywordId: string; 
   }
 }
 
-// 확장 대상 고르기. 채널 수 순으로만 뽑으면 원래 많이 잡히는 인물/이슈·정치·음악이 자리를 다 가져가서
+// 확장 대상 고르기. 채널 수 순으로만 뽑으면 원래 많이 잡히는 인물/이슈·음악이 자리를 다 가져가서
 // 게임·음식 주제는 확장을 못 받고 채널 1~2곳에 머묾 → 상위 EXPAND_TOP_SLOTS개만 채널 수 순,
 // 나머지는 핵심 카테고리(CORE_CATEGORIES) 먼저, 그 안에서 최근 확장을 적게 받은 카테고리부터 한 개씩 돌아가며 배정
 async function pickBalancedByCategory<T extends { id: string; category: string | null }>(sortedCandidates: T[]): Promise<T[]> {
@@ -254,16 +255,18 @@ export async function summarizeTopTopics() {
     });
 
     try {
-      const summary = await summarizeTopic({
+      const { summary, category } = await summarizeTopic({
         topic: keyword.text,
-        category: keyword.category,
         videoTitles: videos.map((v) => v.title),
       });
+      // 요약하면서 고른 카테고리로 확정 ("제외"면 웹에서 빠짐). 종류를 못 받았으면 기존 분류 유지
+      const confirmed = category ? { category, categoryVotes: { [category]: CONFIRMED_CATEGORY_WEIGHT } } : {};
       await prisma.keyword.update({
         where: { id: keyword.id },
-        data: { summary, summaryAt: new Date() },
+        data: { summary, summaryAt: new Date(), ...confirmed },
       });
-      console.log(`[YOUTUBE] 요약: "${keyword.text}"`);
+      const moved = category && category !== keyword.category ? ` (카테고리 ${keyword.category} → ${category})` : "";
+      console.log(`[YOUTUBE] 요약: "${keyword.text}"${moved}`);
     } catch (err) {
       console.error(`[YOUTUBE] 요약 실패 ("${keyword.text}"):`, err instanceof Error ? err.message : err);
     }

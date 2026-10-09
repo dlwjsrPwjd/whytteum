@@ -19,12 +19,12 @@ export const DISCOVERY_QUERIES: { q: string; duration: "short" | "medium" }[] = 
   { q: "장난감|완구|굿즈|키링", duration: "short" },
   { q: "드라마|영화|명장면", duration: "short" },
   { q: "신곡|안무|커버", duration: "short" },
-  // 부가: 인물/이슈(유튜버·연예인 논란), 정치 이슈용
+  // 부가: 인물/이슈(유튜버·연예인 논란)용
   { q: "논란|근황|폭로", duration: "short" },
 ];
 
 // 서비스의 원래 목적인 "핵심 유행" 카테고리. 확장 검색 배정에서 우선함
-// (패션/뷰티·인물/이슈·게임·정치는 부가 카테고리)
+// (패션/뷰티·인물/이슈·게임은 부가 카테고리)
 export const CORE_CATEGORIES = ["음식/디저트", "밈/챌린지", "아이템/쇼핑", "음악/댄스", "드라마/예능"];
 
 // 확장 검색: 주제 하나를 키워드로 다시 검색해서 "몇 개 채널이 다루는지"를 모음
@@ -45,6 +45,9 @@ export const SHORTS_MAX_SECONDS = 180;
 // 한 번 실행에 새로 쓰는 주제 요약 수, 요약 재생성 주기
 export const SUMMARIZE_PER_RUN = 10;
 export const SUMMARY_REFRESH_HOURS = 24;
+// 요약 시점(상위 모델)이나 재분류 스크립트로 확정한 카테고리의 득표. 득표를 이 값으로 초기화해서
+// 이후 탐색(lite)에서 한두 번 엉뚱하게 분류돼도 뒤집히지 않게 함. 요약이 갱신될 때마다 다시 확정됨
+export const CONFIRMED_CATEGORY_WEIGHT = 3;
 
 // Gemini 무료 티어 분당 요청 제한(실측 15 RPM)을 넘지 않도록 호출 사이에 여유를 둠
 export const GEMINI_CALL_DELAY_MS = 4100;

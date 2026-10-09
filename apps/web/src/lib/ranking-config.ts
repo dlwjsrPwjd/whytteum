@@ -30,9 +30,4 @@ export const TREND_CATEGORIES = [
   { name: "드라마/예능", emoji: "📺" },
   { name: "게임", emoji: "🎮" },
   { name: "인물/이슈", emoji: "💬" },
-  { name: "정치", emoji: "🏛️" },
 ] as const;
-
-// 기본(전체) 랭킹에서는 빼고, 해당 카테고리를 직접 골랐을 때만 보여줌
-// (정치 주제는 채널 수가 많아서 섞으면 전체 랭킹을 거의 다 차지함)
-export const HIDDEN_FROM_ALL_CATEGORIES: string[] = ["정치"];
