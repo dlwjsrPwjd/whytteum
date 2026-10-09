@@ -22,6 +22,7 @@ export function RankingSection({
   from,
   showAll = false,
   fixedRows,
+  twoColumns = false,
 }: {
   title: string;
   period: string;
@@ -34,6 +35,8 @@ export function RankingSection({
   showAll?: boolean;
   // 항목이 이보다 적어도 이만큼의 줄 높이를 유지 (카드 크기가 항목 수에 따라 줄어들지 않게)
   fixedRows?: number;
+  // true면 넓은 화면에서 1~5위 / 6~10위를 두 칸으로 나눠 표시 (showAll + fixedRows=10과 함께 씀)
+  twoColumns?: boolean;
 }) {
   const [showSecondHalf, setShowSecondHalf] = useState(false);
   const hasSecondHalf = !showAll && items.length > 5;
@@ -80,7 +83,13 @@ export function RankingSection({
           아직 데이터가 없어요
         </p>
       ) : (
-        <ol className="relative flex flex-col gap-1">
+        <ol
+          className={
+            twoColumns
+              ? "relative grid grid-cols-1 gap-y-1 sm:grid-flow-col sm:grid-cols-2 sm:grid-rows-5 sm:gap-x-6"
+              : "relative flex flex-col gap-1"
+          }
+        >
           {visible.length === 0 && (
             <li className="absolute inset-0 flex items-center justify-center text-sm text-stone-500 dark:text-stone-400">
               아직 데이터가 없어요

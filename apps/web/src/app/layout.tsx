@@ -26,7 +26,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="flex min-h-full flex-col">
         <header className="sticky top-0 z-10 border-b border-coral-100 bg-background/80 backdrop-blur dark:border-stone-800">
-          <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-4 sm:px-6">
+          <div className="mx-auto flex h-14 w-full max-w-7xl items-center justify-between px-4 sm:px-6">
             <Link href="/" className="flex items-center gap-1.5">
               <span className="text-xl">🔥</span>
               <span className="bg-linear-to-r from-coral-500 to-violet-500 bg-clip-text text-xl font-extrabold tracking-tight text-transparent">

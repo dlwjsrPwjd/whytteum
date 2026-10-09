@@ -3,6 +3,7 @@ import { DEFAULT_CATEGORY_PERIOD, RANKING_PERIODS, RANKING_SIZE, TREND_CATEGORIE
 import { categoriesHref } from "@/lib/categories-url";
 import { RankingSection } from "@/components/RankingSection";
 import { CategoryChips } from "@/components/CategoryChips";
+import { Spotlight } from "@/components/Spotlight";
 
 export default async function CategoriesPage({
   searchParams,
@@ -14,7 +15,7 @@ export default async function CategoriesPage({
   const period = parsePeriod(params.period) ?? DEFAULT_CATEGORY_PERIOD;
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-10 sm:px-6">
+    <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-10 sm:px-6">
       <header className="flex flex-col gap-2">
         <h1 className="text-3xl font-extrabold tracking-tight">
           카테고리별{" "}
@@ -32,14 +33,16 @@ export default async function CategoriesPage({
   );
 }
 
-// 카테고리 하나를 골랐을 때: 선택한 기간의 순위를 한 번에 전부
+// 카테고리 하나를 골랐을 때: 1위를 AI 요약과 함께 크게, 아래에 선택한 기간의 순위 전부를 두 칸으로
 async function CategoryDetail({ category, period }: { category: string; period: RankingPeriodDays }) {
   const items = await getRanking(period, category);
   const info = RANKING_PERIODS.find((p) => p.days === period)!;
   const emoji = TREND_CATEGORIES.find((c) => c.name === category)?.emoji ?? info.emoji;
+  const from = categoriesHref(category, period);
 
   return (
-    <div className="max-w-2xl">
+    <div className="flex flex-col gap-4">
+      {items[0] && <Spotlight topic={items[0]} label={`${category} 1위`} showCategory={false} from={from} />}
       <RankingSection
         title={category}
         period={info.label}
@@ -48,7 +51,8 @@ async function CategoryDetail({ category, period }: { category: string; period: 
         highlight
         showAll
         fixedRows={RANKING_SIZE}
-        from={categoriesHref(category, period)}
+        twoColumns
+        from={from}
       />
     </div>
   );
