@@ -2,7 +2,7 @@ import Link from "next/link";
 import { RANKING_PERIODS, TREND_CATEGORIES, type RankingPeriodDays } from "@/lib/ranking-config";
 import { categoriesHref } from "@/lib/categories-url";
 
-// 위: 기간(3일/7일/30일) 탭, 아래: 카테고리 칩. 한쪽을 바꿔도 다른 쪽 선택은 유지
+// 위: 기간(3일/7일/30일) 탭, 아래: 카테고리 칩(한 줄, 넘치면 가로 스크롤). 한쪽을 바꿔도 다른 쪽 선택은 유지
 export function CategoryChips({ active, period }: { active?: string; period: RankingPeriodDays }) {
   const chips: { name?: string; label: string }[] = [
     { label: "✨ 한눈에 보기" },
@@ -30,14 +30,14 @@ export function CategoryChips({ active, period }: { active?: string; period: Ran
         })}
       </nav>
 
-      <nav className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
+      <nav className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0">
         {chips.map((chip) => {
           const isActive = chip.name === active;
           return (
             <Link
               key={chip.label}
               href={categoriesHref(chip.name, period)}
-              className={`shrink-0 rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
+              className={`shrink-0 rounded-full border px-3 py-1.5 text-[13px] transition-colors ${
                 isActive
                   ? "border-coral-500 bg-coral-500 font-semibold text-white shadow-sm shadow-coral-500/30"
                   : "border-stone-200 bg-white text-stone-600 hover:border-coral-300 hover:text-coral-600 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-400"

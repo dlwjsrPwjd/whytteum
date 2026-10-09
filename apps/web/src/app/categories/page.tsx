@@ -1,5 +1,5 @@
 import { getCategoryOverview, getRanking, isTrendCategory, parsePeriod } from "@/lib/trends";
-import { DEFAULT_CATEGORY_PERIOD, RANKING_PERIODS, TREND_CATEGORIES, type RankingPeriodDays } from "@/lib/ranking-config";
+import { DEFAULT_CATEGORY_PERIOD, RANKING_PERIODS, RANKING_SIZE, TREND_CATEGORIES, type RankingPeriodDays } from "@/lib/ranking-config";
 import { categoriesHref } from "@/lib/categories-url";
 import { RankingSection } from "@/components/RankingSection";
 import { CategoryChips } from "@/components/CategoryChips";
@@ -47,19 +47,20 @@ async function CategoryDetail({ category, period }: { category: string; period: 
         items={items}
         highlight
         showAll
+        fixedRows={RANKING_SIZE}
         from={categoriesHref(category, period)}
       />
     </div>
   );
 }
 
-// 카테고리를 안 골랐을 때: 카테고리마다 선택한 기간의 랭킹을 카드로
+// 카테고리를 안 골랐을 때: 카테고리마다 선택한 기간의 랭킹을 카드로 (넓은 화면에서 4×2)
 async function Overview({ period }: { period: RankingPeriodDays }) {
   const overview = await getCategoryOverview(period);
   const info = RANKING_PERIODS.find((p) => p.days === period)!;
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {overview.map((category) => (
         <RankingSection
           key={category.name}
@@ -67,6 +68,7 @@ async function Overview({ period }: { period: RankingPeriodDays }) {
           period={info.label}
           emoji={category.emoji}
           items={category.items}
+          fixedRows={5}
           from={categoriesHref(undefined, period)}
         />
       ))}

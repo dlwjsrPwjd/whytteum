@@ -21,6 +21,7 @@ export function RankingSection({
   highlight = false,
   from,
   showAll = false,
+  fixedRows,
 }: {
   title: string;
   period: string;
@@ -31,6 +32,8 @@ export function RankingSection({
   from?: string;
   // true면 5개씩 번갈아 보여주지 않고 전체 순위를 한 번에 표시
   showAll?: boolean;
+  // 항목이 이보다 적어도 이만큼의 줄 높이를 유지 (카드 크기가 항목 수에 따라 줄어들지 않게)
+  fixedRows?: number;
 }) {
   const [showSecondHalf, setShowSecondHalf] = useState(false);
   const hasSecondHalf = !showAll && items.length > 5;
@@ -47,6 +50,8 @@ export function RankingSection({
   const visible = showAll ? items : items.slice(rankOffset, rankOffset + 5);
   // 채널 수 막대 길이는 해당 기간 최대 채널 수 대비 비율 (순위는 조회수도 반영하므로 1위가 최대가 아닐 수 있음)
   const maxChannels = Math.max(1, ...items.map((item) => item.channelCount));
+  // 빈 자리는 실제 줄과 같은 마크업을 투명하게 그려서 높이를 맞춤
+  const placeholderCount = Math.max(0, (fixedRows ?? 0) - visible.length);
 
   return (
     <section
@@ -70,12 +75,17 @@ export function RankingSection({
         )}
       </div>
 
-      {visible.length === 0 ? (
+      {visible.length === 0 && placeholderCount === 0 ? (
         <p className="py-6 text-center text-sm text-stone-500 dark:text-stone-400">
           아직 데이터가 없어요
         </p>
       ) : (
-        <ol className="flex flex-col gap-1">
+        <ol className="relative flex flex-col gap-1">
+          {visible.length === 0 && (
+            <li className="absolute inset-0 flex items-center justify-center text-sm text-stone-500 dark:text-stone-400">
+              아직 데이터가 없어요
+            </li>
+          )}
           {visible.map((item, i) => {
             const rank = rankOffset + i + 1;
             return (
@@ -110,6 +120,15 @@ export function RankingSection({
               </li>
             );
           })}
+          {Array.from({ length: placeholderCount }, (_, i) => (
+            <li key={`empty-${i}`} aria-hidden className="invisible flex items-center gap-3 px-2 py-2">
+              <span className="h-6 w-6 shrink-0" />
+              <span className="flex flex-1 flex-col gap-1">
+                <span className="text-sm">&nbsp;</span>
+                <span className="h-1" />
+              </span>
+            </li>
+          ))}
         </ol>
       )}
     </section>
