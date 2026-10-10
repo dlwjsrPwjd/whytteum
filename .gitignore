@@ -46,3 +46,6 @@ apps/cron/collect.log
 # IDE
 .vscode/
 .idea/
+
+# 개인 문서 (기획서·셋업 노트·트러블슈팅) — 로컬에만 보관
+docs/
