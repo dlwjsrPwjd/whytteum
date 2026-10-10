@@ -1,0 +1,103 @@
+# CI: PR·push마다 GitHub 클라우드 러너에서 lint / 타입체크 / 프로덕션 빌드 검사
+#     (DB 없이 돌아감 — 모든 페이지가 요청 시 렌더링이라 next build에 DB가 필요 없음)
+# CD: main에 push되고 CI를 통과하면 개인 PC의 self-hosted 러너에서 docker compose로 재배포
+name: CI/CD
+
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+    branches: [dev, main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # main은 배포 도중 끊기면 안 되므로 취소하지 않고 순서대로 실행
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Prisma Client 생성
+        run: npx prisma generate
+
+      - name: Lint (web)
+        run: npm run lint -w web
+
+      # LayoutProps 같은 라우트 타입은 next가 생성하므로(.next/types) 빌드 전 tsc에서는 typegen이 먼저 필요
+      - name: Type check (web)
+        run: |
+          npx next typegen apps/web
+          npx tsc --noEmit -p apps/web
+
+      - name: Type check (cron)
+        run: npx tsc --noEmit -p apps/cron
+
+      - name: Build (web)
+        run: npm run build -w web
+
+  deploy:
+    needs: check
+    # self-hosted 러너는 내 PC에서 코드를 실행하므로 main push(=내가 머지한 코드)일 때만.
+    # pull_request 이벤트(포크 PR 포함)에서는 절대 실행되지 않음
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, windows, x64]
+    defaults:
+      run:
+        # Windows PowerShell 5.1은 BOM 없는 스크립트의 한글을 깨뜨리므로 run 안의 문자열은 영어로만
+        shell: powershell
+    steps:
+      - uses: actions/checkout@v7
+
+      # API 키는 GitHub에 올리지 않고, 러너 폴더의 .env에 적어둔 이 PC의 .env 경로에서 복사
+      - name: .env 준비
+        run: |
+          if (-not $env:WHYTTEUM_ENV_FILE -or -not (Test-Path $env:WHYTTEUM_ENV_FILE)) {
+            Write-Error "WHYTTEUM_ENV_FILE is not set or the file does not exist (check C:\actions-runner\.env)"
+            exit 1
+          }
+          Copy-Item $env:WHYTTEUM_ENV_FILE .env -Force
+
+      # 롤백용으로 지금 돌고 있는 이미지를 :prev로 남겨둠
+      - name: 현재 이미지 백업
+        run: |
+          foreach ($image in "whytteum-prod-web", "whytteum-prod-cron") {
+            if (docker images -q "${image}:latest") { docker tag "${image}:latest" "${image}:prev" }
+          }
+          exit 0
+
+      - name: 빌드 & 재기동
+        run: |
+          docker compose up -d --build
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: 헬스체크 (실패 시 이전 이미지로 롤백)
+        run: |
+          $ok = $false
+          for ($i = 0; $i -lt 30; $i++) {
+            try {
+              $res = Invoke-WebRequest -Uri "http://localhost:3000/" -UseBasicParsing -TimeoutSec 5
+              if ($res.StatusCode -eq 200) { $ok = $true; break }
+            } catch {}
+            Start-Sleep 2
+          }
+          if ($ok) { Write-Host "Deploy OK: http://localhost:3000 returned 200"; exit 0 }
+
+          Write-Host "Health check failed - rolling back to previous images"
+          docker compose logs --tail 50 web
+          foreach ($image in "whytteum-prod-web", "whytteum-prod-cron") {
+            if (docker images -q "${image}:prev") { docker tag "${image}:prev" "${image}:latest" }
+          }
+          docker compose up -d --no-build
+          exit 1

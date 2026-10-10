@@ -1,0 +1,22 @@
+{
+  "name": "whytteum",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:generate": "prisma generate",
+    "prisma:studio": "prisma studio",
+    "dev": "npm run dev -w web",
+    "collect": "npm run collect -w cron",
+    "summarize": "npm run summarize -w cron"
+  },
+  "dependencies": {
+    "@prisma/client": "^6"
+  },
+  "devDependencies": {
+    "prisma": "^6"
+  }
+}

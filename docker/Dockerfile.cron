@@ -1,0 +1,20 @@
+# 빌드 컨텍스트는 레포 루트 (npm workspaces라 루트 package-lock.json 기준으로 설치)
+FROM node:22-bookworm-slim
+# Prisma 쿼리 엔진이 openssl을 필요로 함 / 로그 시각을 TZ(Asia/Seoul)로 찍으려면 tzdata 필요
+RUN apt-get update && apt-get install -y --no-install-recommends openssl tzdata && rm -rf /var/lib/apt/lists/*
+ENV NPM_CONFIG_UPDATE_NOTIFIER=false
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+COPY apps/web/package.json apps/web/
+COPY apps/cron/package.json apps/cron/
+# tsx로 바로 실행하고 시작할 때 prisma migrate deploy도 돌리므로 devDependencies까지 설치
+RUN npm ci -w cron --include-workspace-root
+
+COPY prisma ./prisma
+RUN npx prisma generate
+COPY apps/cron ./apps/cron
+COPY docker/cron-loop.sh ./docker/cron-loop.sh
+
+USER node
+CMD ["sh", "docker/cron-loop.sh"]

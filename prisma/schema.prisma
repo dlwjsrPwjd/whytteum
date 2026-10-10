@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TrendSource {
+  YOUTUBE
+}
+
+enum CollectionStatus {
+  SUCCESS
+  FAILED
+}
+
+model Category {
+  id         String      @id @default(cuid())
+  name       String      @unique
+  slug       String      @unique
+  createdAt  DateTime    @default(now())
+  trendItems TrendItem[]
+}
+
+model TrendItem {
+  id          String      @id @default(cuid())
+  title       String
+  source      TrendSource
+  sourceUrl   String?
+  score       Float?
+  rawData     Json?
+  category    Category    @relation(fields: [categoryId], references: [id])
+  categoryId  String
+  collectedAt DateTime    @default(now())
+  createdAt   DateTime    @default(now())
+
+  // YouTube 영상 정보 (source=YOUTUBE에서만 값이 채워짐)
+  youtubeVideoId    String?   @unique
+  channelId         String?
+  channelTitle      String?
+  publishedAt       DateTime?
+  durationSec       Int?
+  isShort           Boolean   @default(false)
+
+  videoKeywords VideoKeyword[]
+
+  @@index([source, collectedAt])
+  @@index([categoryId])
+  @@index([publishedAt])
+}
+
+model Keyword {
+  id             String         @id @default(cuid())
+  text           String         @unique
+  // 주제(토픽) 단위 정보: Gemini 분류 카테고리, 주제별 AI 요약, 마지막 확장 검색 시각
+  category       String?
+  // 탐색 회차마다 Gemini가 낸 분류 횟수 {"음악/댄스": 3, "음식/디저트": 1} — category는 최다 득표
+  categoryVotes  Json           @default("{}")
+  // 사람이 직접 고친 카테고리. true면 탐색 득표·요약 확정·재분류가 category를 바꾸지 않음
+  categoryLocked Boolean        @default(false)
+  summary        String?
+  summaryAt      DateTime?
+  lastExpandedAt DateTime?
+  videoKeywords  VideoKeyword[]
+  createdAt      DateTime       @default(now())
+}
+
+model VideoKeyword {
+  id          String    @id @default(cuid())
+  trendItem   TrendItem @relation(fields: [trendItemId], references: [id], onDelete: Cascade)
+  trendItemId String
+  keyword     Keyword   @relation(fields: [keywordId], references: [id])
+  keywordId   String
+  createdAt   DateTime  @default(now())
+
+  @@unique([trendItemId, keywordId])
+}
+
+model CollectionLog {
+  id             String           @id @default(cuid())
+  source         TrendSource
+  status         CollectionStatus
+  itemsCollected Int              @default(0)
+  errorMessage   String?
+  startedAt      DateTime
+  finishedAt     DateTime?
+  createdAt      DateTime         @default(now())
+
+  @@index([source, createdAt])
+}

@@ -1,0 +1,19 @@
+{
+  "name": "cron",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "collect": "tsx src/index.ts",
+    "summarize": "tsx src/summarize.ts",
+    "reclassify": "tsx src/reclassify.ts"
+  },
+  "dependencies": {
+    "dotenv": "^16"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsx": "^4",
+    "typescript": "^5"
+  }
+}
