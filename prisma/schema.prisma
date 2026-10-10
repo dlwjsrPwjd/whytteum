@@ -58,6 +58,8 @@ model Keyword {
   category       String?
   // 탐색 회차마다 Gemini가 낸 분류 횟수 {"음악/댄스": 3, "음식/디저트": 1} — category는 최다 득표
   categoryVotes  Json           @default("{}")
+  // 사람이 직접 고친 카테고리. true면 탐색 득표·요약 확정·재분류가 category를 바꾸지 않음
+  categoryLocked Boolean        @default(false)
   summary        String?
   summaryAt      DateTime?
   lastExpandedAt DateTime?

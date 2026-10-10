@@ -22,7 +22,13 @@ async function callGemini(prompt: string, model = process.env.GEMINI_MODEL ?? "g
         contents: [{ parts: [{ text: prompt }] }],
       }),
     });
-    if (res.ok || ![429, 503].includes(res.status) || attempt >= GEMINI_RETRY_DELAYS_MS.length) break;
+    if (res.ok || ![429, 503].includes(res.status)) break;
+    // 하루 한도(무료 티어 모델별 요청 수/일) 초과는 기다려도 안 풀려서 재시도하지 않음
+    if (res.status === 429) {
+      const body = await res.text();
+      if (body.includes("PerDay")) throw new GeminiDailyQuotaError(model, body);
+      if (attempt >= GEMINI_RETRY_DELAYS_MS.length) throw new Error(`Gemini API 요청 실패 (429): ${body}`);
+    } else if (attempt >= GEMINI_RETRY_DELAYS_MS.length) break;
     console.warn(`[GEMINI] ${res.status} → ${GEMINI_RETRY_DELAYS_MS[attempt] / 1000}초 뒤 재시도`);
     await new Promise((resolve) => setTimeout(resolve, GEMINI_RETRY_DELAYS_MS[attempt]));
   }
@@ -38,6 +44,32 @@ async function callGemini(prompt: string, model = process.env.GEMINI_MODEL ?? "g
   }
 
   return text.trim();
+}
+
+class GeminiDailyQuotaError extends Error {
+  constructor(model: string, body: string) {
+    super(`Gemini 하루 한도 초과 (${model}): ${body.slice(0, 200)}`);
+  }
+}
+
+// 이번 실행에서 하루 한도가 찬 모델. 같은 실행 동안은 다시 호출하지 않고 바로 대체 모델로 감
+const exhaustedModels = new Set<string>();
+
+// 상위 모델(요약용)로 먼저 호출하고, 하루 한도가 찼으면 기본 모델(lite)로 대신 호출
+// (무료 티어 상위 모델은 하루 20회뿐이라 요약 10개 × 하루 6회 실행이면 금방 막힘. 요약이 아예 빠지는 것보다 lite 요약이 나음)
+async function callGeminiPreferred(prompt: string): Promise<string> {
+  const preferred = process.env.GEMINI_SUMMARY_MODEL || process.env.GEMINI_MODEL;
+  const fallback = process.env.GEMINI_MODEL;
+  if (preferred && !exhaustedModels.has(preferred)) {
+    try {
+      return await callGemini(prompt, preferred);
+    } catch (err) {
+      if (!(err instanceof GeminiDailyQuotaError) || !fallback || fallback === preferred) throw err;
+      exhaustedModels.add(preferred);
+      console.warn(`[GEMINI] ${preferred} 하루 한도 초과 → 이번 실행은 ${fallback}로 대신 호출`);
+    }
+  }
+  return callGemini(prompt, fallback);
 }
 
 
@@ -97,14 +129,41 @@ const TOPIC_TYPES: Record<string, string> = {
   기타: EXCLUDED_CATEGORY,
 };
 
-// Gemini가 낸 종류를 카테고리로. 목록에 없는 종류면 undefined
-function categoryOfType(type: unknown): string | undefined {
-  return typeof type === "string" ? TOPIC_TYPES[type.trim()] : undefined;
+// 사람은 "왜 뜨는지"에 따라 카테고리가 갈림: 본업 활동 때문이면 아래 카테고리, 사생활·이슈 때문이면 인물/이슈
+// (예: 나나가 열애설로 뜨면 인물/이슈, 신곡으로 뜨면 음악/댄스. 가수가 먹방으로 떠도 인물/이슈라 음식으로 가지 않음)
+const PERSON_ACTIVITY_CATEGORY: Record<string, string> = {
+  가수: "음악/댄스",
+  댄서: "음악/댄스",
+  배우: "드라마/예능", // 출연작
+  방송인: "드라마/예능", // 출연 프로그램
+  프로게이머: "게임",
+  유튜버: "인물/이슈",
+  운동선수: "인물/이슈",
+  "그 밖의 인물": "인물/이슈",
+};
+const ISSUE_CATEGORY = "인물/이슈";
+
+// Gemini가 낸 종류(+사람이면 화제 이유)를 카테고리로. 목록에 없는 종류면 undefined
+// reason은 주제 하나의 영상 제목을 따로 보는 요약·재분류 단계에서만 받음. 없으면(탐색 단계) 종류 기본값
+function categoryOfType(type: unknown, reason?: unknown): string | undefined {
+  if (typeof type !== "string") return undefined;
+  const key = type.trim();
+  if (key in PERSON_ACTIVITY_CATEGORY) {
+    if (reason === "이슈") return ISSUE_CATEGORY;
+    if (reason === "활동") return PERSON_ACTIVITY_CATEGORY[key];
+  }
+  return TOPIC_TYPES[key];
 }
+
+// 사람 주제의 화제 이유. 요약·재분류 프롬프트에만 붙임
+const REASON_RULES = `- 대상이 사람이면 reason도 고른다. 대상이 사람이 아니면 reason은 쓰지 않는다.
+  - "활동": 본업 때문에 화제. 가수의 신곡·컴백·무대·공연, 배우의 출연 작품, 방송인의 프로그램, 프로게이머의 경기
+  - "이슈": 본업 밖의 일로 화제. 열애·결혼·이혼, 논란·사건·폭로, 근황, 먹방·일상·광고, 다른 사람과의 관계
+  - 둘 다 있으면 영상 제목에서 더 많이 다룬 쪽을 고른다.`;
 
 // 주제 추출과 재분류가 같은 기준을 쓰도록 공통 규칙으로 둠
 const TYPE_RULES = `- type은 "화제 대상 자체가 무엇인지"이고 다음 중 하나다: ${Object.keys(TOPIC_TYPES).join(", ")}
-- 영상 내용이 아니라 대상 자체로 정한다. 배우가 디저트를 먹는 영상이어도 대상이 배우면 "배우", 가수의 열애설 영상이어도 대상이 가수면 "가수"다.
+- type은 영상 내용이 아니라 대상 자체로 정한다. 배우가 디저트를 먹는 영상이어도 대상이 배우면 "배우", 가수의 열애설 영상이어도 대상이 가수면 "가수"다.
 - 사람이면 반드시 사람 종류(가수, 댄서, 배우, 방송인, 유튜버, 운동선수, 프로게이머, 정치인, 그 밖의 인물) 중 하나다. 사람을 음식/음료나 물건으로 고르지 않는다.
   - 가수와 배우를 겸하면 주로 알려진 쪽으로 고른다. 아이돌 그룹의 멤버는 가수다.
 - "노래/안무"는 곡 이름이나 안무 이름, "작품"은 드라마·예능·영화·웹툰 제목이다.
@@ -176,18 +235,18 @@ export async function classifyTopics(
     .map((t, i) => `${i}. ${t.topic}\n${t.videoTitles.map((title) => `   - ${title}`).join("\n")}`)
     .join("\n");
 
-  const raw = await callGemini(`다음은 한국 유튜브에서 화제가 된 주제들과, 각 주제를 다룬 영상 제목 일부다.
-각 주제가 무엇인지(type) 분류해줘.
+  const raw = await callGeminiPreferred(`다음은 한국 유튜브에서 화제가 된 주제들과, 각 주제를 다룬 영상 제목 일부다.
+각 주제가 무엇인지(type)와, 사람이면 왜 화제인지(reason)를 분류해줘.
 
 ${list}
 
 규칙:
 ${TYPE_RULES}
+${REASON_RULES}
 
 다른 설명 없이 아래 형식의 JSON 배열로만 응답해줘. index는 주제 번호다.
-[{"index": 0, "type": "가수"}]`,
-    // 한 번만 돌리는 정리 작업이라 정확도가 나은 요약 모델 사용
-    process.env.GEMINI_SUMMARY_MODEL || process.env.GEMINI_MODEL,
+[{"index": 0, "type": "가수", "reason": "이슈"}, {"index": 1, "type": "음식/음료"}]`,
+    // 한 번만 돌리는 정리 작업이라 정확도가 나은 요약 모델 우선 (하루 한도가 찼으면 lite)
   );
 
   const result = new Map<number, string>();
@@ -200,7 +259,7 @@ ${TYPE_RULES}
   }
   if (!Array.isArray(parsed)) return result;
   for (const entry of parsed) {
-    const category = categoryOfType(entry?.type);
+    const category = categoryOfType(entry?.type, entry?.reason);
     if (Number.isInteger(entry?.index) && category) result.set(entry.index, category);
   }
   return result;
@@ -218,7 +277,7 @@ export async function summarizeTopic({
 }): Promise<{ summary: string; category: string | undefined }> {
   const videos = videoTitles.map((t) => `- ${t}`).join("\n");
 
-  const raw = await callGemini(
+  const raw = await callGeminiPreferred(
     `"${topic}"이(가) 요즘 한국에서 화제다. 아래는 이 주제를 다룬 최근 유튜브 영상 제목이다.
 
 [유튜브 영상 제목]
@@ -231,22 +290,22 @@ ${videos}
 - 제목만으로 알 수 없는 내용은 추측하지 않는다.
 - "제공된 자료에 따르면"처럼 자료 자체를 언급하는 말이나 마크다운 서식은 쓰지 않는다.
 
-설명을 쓴 다음, 그 내용을 바탕으로 "${topic}" 자체가 무엇인지(type)도 골라줘.
+설명을 쓴 다음, 그 내용을 바탕으로 "${topic}" 자체가 무엇인지(type)와, 사람이면 왜 화제인지(reason)도 골라줘.
 ${TYPE_RULES}
+${REASON_RULES}
 
-다른 설명 없이 아래 형식의 JSON으로만 응답해줘. summary를 먼저 쓰고 type을 쓴다.
-{"summary": "설명 본문", "type": "배우"}`,
-    // lite 모델은 폭로 기사 제목에서 가해/피해 주체를 자주 뒤바꿔서, 요약은 상위 모델을 따로 지정
-    process.env.GEMINI_SUMMARY_MODEL || process.env.GEMINI_MODEL,
+다른 설명 없이 아래 형식의 JSON으로만 응답해줘. summary를 먼저 쓰고 type, reason을 쓴다.
+{"summary": "설명 본문", "type": "배우", "reason": "활동"}`,
+    // lite 모델은 폭로 기사 제목에서 가해/피해 주체를 자주 뒤바꿔서, 요약은 상위 모델 우선 (하루 한도가 찼으면 lite)
   );
 
-  const parsed = parseJsonResponse(raw) as { summary?: unknown; type?: unknown };
+  const parsed = parseJsonResponse(raw) as { summary?: unknown; type?: unknown; reason?: unknown };
   if (typeof parsed?.summary !== "string" || !parsed.summary.trim()) {
     throw new Error(`요약 응답에 summary가 없음: ${raw.slice(0, 200)}`);
   }
   return {
     // 지시해도 가끔 **굵게** 서식을 섞어서 응답하므로 한 번 더 제거
     summary: parsed.summary.replace(/\*\*/g, "").trim(),
-    category: categoryOfType(parsed.type),
+    category: categoryOfType(parsed.type, parsed.reason),
   };
 }

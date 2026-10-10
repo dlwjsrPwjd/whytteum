@@ -259,13 +259,16 @@ export async function summarizeTopTopics() {
         topic: keyword.text,
         videoTitles: videos.map((v) => v.title),
       });
-      // 요약하면서 고른 카테고리로 확정 ("제외"면 웹에서 빠짐). 종류를 못 받았으면 기존 분류 유지
-      const confirmed = category ? { category, categoryVotes: { [category]: CONFIRMED_CATEGORY_WEIGHT } } : {};
+      // 요약하면서 고른 카테고리로 확정 ("제외"면 웹에서 빠짐). 종류를 못 받았거나 사람이 고친 카테고리면 기존 분류 유지
+      const confirmed =
+        category && !keyword.categoryLocked
+          ? { category, categoryVotes: { [category]: CONFIRMED_CATEGORY_WEIGHT } }
+          : {};
       await prisma.keyword.update({
         where: { id: keyword.id },
         data: { summary, summaryAt: new Date(), ...confirmed },
       });
-      const moved = category && category !== keyword.category ? ` (카테고리 ${keyword.category} → ${category})` : "";
+      const moved = "category" in confirmed && category !== keyword.category ? ` (카테고리 ${keyword.category} → ${category})` : "";
       console.log(`[YOUTUBE] 요약: "${keyword.text}"${moved}`);
     } catch (err) {
       console.error(`[YOUTUBE] 요약 실패 ("${keyword.text}"):`, err instanceof Error ? err.message : err);

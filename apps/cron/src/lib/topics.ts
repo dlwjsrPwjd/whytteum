@@ -35,7 +35,7 @@ export class TopicRegistry {
   async findOrCreate(text: string, category: string | null): Promise<Keyword> {
     const existing = this.find(text);
     if (existing) {
-      if (!category) return existing;
+      if (!category || existing.categoryLocked) return existing;
       const votes = addVote(existing.categoryVotes, category);
       const updated = await prisma.keyword.update({
         where: { id: existing.id },

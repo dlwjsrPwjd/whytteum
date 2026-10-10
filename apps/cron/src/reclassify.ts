@@ -14,7 +14,8 @@ async function main() {
   const dryRun = process.env.DRY_RUN === "1";
   const keywords = await prisma.keyword.findMany({
     // "제외"는 1차 개편(영상별 키워드) 시절의 "Dance Practice", 기획사명 같은 잡키워드라 되살리지 않음
-    where: { videoKeywords: { some: {} }, category: { in: [...TOPIC_CATEGORIES] } },
+    // 사람이 직접 고친 카테고리(categoryLocked)는 건드리지 않음
+    where: { videoKeywords: { some: {} }, category: { in: [...TOPIC_CATEGORIES] }, categoryLocked: false },
     select: {
       id: true,
       text: true,
